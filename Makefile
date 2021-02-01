@@ -6,4 +6,4 @@ main.o: main.cpp
 	g++ -c main.cpp
 
 clean: 
-	rm *.o mycc.exe post.aux post.log texput.log
+	rm *.o mycc.exe post.log post.pdf
