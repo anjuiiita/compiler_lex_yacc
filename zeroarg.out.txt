@@ -1,0 +1,4 @@
+My bare-bones C compiler (for COM 440/540)
+	Written by Anju Kumari(ank@iastate.edu)
+	Version 0.1
+	2 February, 2021

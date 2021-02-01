@@ -1,0 +1,14 @@
+Usage:
+	mycc -mode [options] infile
+
+Valid modes:
+	 -0: Version information
+	 -1: Part 1 (not implemented yet)
+	 -2: Part 2 (not implemented yet)
+	 -3: Part 3 (not implemented yet)
+	 -4: Part 4 (not implemented yet)
+	 -5: Part 5 (not implemented yet)
+
+Valid options:
+	 -o outfile: write to outfile instead of standard output
+
