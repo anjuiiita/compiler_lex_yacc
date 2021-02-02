@@ -1,15 +1,41 @@
 #include <iostream>
 #include <string>
+#include <fstream>
 using namespace std;
 
 int main(int argc, char* argv[]) {
-    if (argc < 2)
-        cout << "Please append valid mode in command" << endl;
+    if (argc < 2) {
+        string line;
+        ifstream myfile ("noargs.out.txt");
+        while ( getline (myfile,line) )
+        {
+                cout << line << '\n';
+        }
+        myfile.close(); 
         return 0;
+    }
 
     string mode = argv[1];
+    cout<<mode<<endl;
     if (mode == "-0") {
-            cout << "gcc version 8.1.0" << endl; 
+        string line;
+        ifstream myfile ("zeroarg.out.txt");
+        while ( getline (myfile,line) )
+        {
+                cout << line << '\n';
+        }
+        myfile.close(); 
+    } else if(mode == "-o") {
+        string filename = argv[2];
+        fstream f;
+        f.open(filename);
+        string line;
+        ifstream myfile (filename);
+        while ( getline (myfile,line) )
+        {
+                cout << line << '\n';
+        }
+        myfile.close();
     } else {
             cout << "Not implemented yet" << endl;
     }
