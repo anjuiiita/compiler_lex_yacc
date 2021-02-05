@@ -16,7 +16,6 @@ int main(int argc, char* argv[]) {
     }
 
     string mode = argv[1];
-    cout<<mode<<endl;
     if (mode == "-0") {
         string line;
         ifstream myfile ("zeroarg.out.txt");
