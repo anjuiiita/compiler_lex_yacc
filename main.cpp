@@ -20,8 +20,7 @@ int main(int argc, char* argv[]) {
     if (mode == "-0") {
         string line;
         ifstream myfile ("zeroarg.out.txt");
-        while ( getline (myfile,line) )
-        {
+        while ( getline (myfile,line) ) {
                 cout << line << '\n';
         }
         myfile.close(); 
@@ -31,8 +30,7 @@ int main(int argc, char* argv[]) {
         f.open(filename);
         string line;
         ifstream myfile (filename);
-        while ( getline (myfile,line) )
-        {
+        while ( getline (myfile,line) ) {
                 cout << line << '\n';
         }
         myfile.close();
