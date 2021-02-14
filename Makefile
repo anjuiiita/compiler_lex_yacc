@@ -1,9 +1,21 @@
-mycc: main.o
-	g++ main.o -o mycc
-	pdflatex developers
+mycc: main.o lex_cc.o lex_main.h
+	gcc -o mycc main.o lex_cc.o
+	#pdflatex developers
 
-main.o: main.cpp
-	g++ -c main.cpp
+main.o: main.c
+	gcc -c main.c
+
+#lexer: lex_main.o lex_cc.o
+#	gcc -o lexer lex_main.o lex_cc.o
+
+#lex_main.o: lex_main.c tokens.h
+#	gcc -c lex_main.c
+
+lex_cc.o: lex_cc.c tokens.h
+	gcc -c lex_cc.c
+
+lex_cc.c: lexer.l tokens.h
+	flex -o lex_cc.c lexer.l
 
 clean: 
-	rm *.o mycc.exe developers.pdf developers.log developers.aux
+	rm *.o mycc developers.pdf developers.log developers.aux
