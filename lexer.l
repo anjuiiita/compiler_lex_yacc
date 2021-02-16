@@ -135,7 +135,7 @@
                 }  
 
 
-#define[ \t]+(.*?)[ \t]+(.*?)$    {
+#define[ \t]+(.*?)[ \t]+(.*?)[ \t\n]+    {
                                     char *p = strtok(yytext, " ");
                                     p = strtok(NULL, " ");
                                     char *s, *word = p;
@@ -147,6 +147,13 @@
                                     token = yylex();
                                     if (token < 57) {
                                         printf("%s Error: Identifier is already in the set of preprocessor symbols %s\n", current_fname, word);
+                                    }
+                                    int i;
+                                    for (i = 0; i < cur_stack->define_ptr; i++) {
+                                        if (strcmp(cur_stack->define[i], word) == 0) {
+                                            printf("Error near %s line %d text %s\n", current_fname, cur_stack->lineno, yytext);
+	                                        printf("re-defining preprocessor symbol %s", word);
+                                        }
                                     }
                                     cur_stack->define[(cur_stack->define_ptr)++] = word;
                                     yy_delete_buffer(buf);
@@ -208,8 +215,12 @@ void initialize_current_struct(char *fn) {
 
     int i;
     for (i = 0; i < include_files_ptr; i++) {
-        if (strcmp(include_files[i],fn) == 0) {
+        if (strcmp(include_files[i], fn) == 0) {
             printf("%s Error: Includes cycle\n", fn);
+            printf("Error near %s line %d text %s\n", fn, yylineno, yytext);
+	        printf("#include cycle:\n");
+	        printf("File %s includes %s\n", current_fname, fn);
+	        printf("File %s includes %s\n", fn, current_fname);
             exit(1);
         }
     }
