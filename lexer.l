@@ -22,7 +22,6 @@
         int define_ptr;
         int size;
     };
-    
     char *include_files[MAX_INCLUDE_DEPTH];
     int include_files_ptr = 0;
 %}
@@ -132,6 +131,7 @@
                     yylineno = cur_stack->lineno;
                     current_fname = cur_stack->filename;
                     include_stack_ptr -= 1;
+                    yyterminate();
                 }  
 
 
