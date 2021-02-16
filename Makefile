@@ -1,6 +1,6 @@
 mycc: main.o lex_cc.o lex_main.h
 	gcc -o mycc main.o lex_cc.o
-	#pdflatex developers
+	pdflatex developers
 
 main.o: main.c
 	gcc -c main.c
@@ -18,4 +18,5 @@ lex_cc.c: lexer.l tokens.h
 	flex -o lex_cc.c lexer.l
 
 clean: 
-	rm *.o mycc developers.pdf developers.log developers.aux
+	rm *.o mycc lex_cc.c
+	#developers.pdf developers.log developers.aux

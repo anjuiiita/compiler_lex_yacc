@@ -58,6 +58,11 @@ enum yytokentype {
 extern int yylval;
 extern int yylineno;
 extern char* yytext;
-extern FILE *yyin;
+extern FILE *yyin, *yyout;
+
+char *current_fname;
+
+struct stack*cur_stack;
+void initialize_current_struct();
 
 int yylex();

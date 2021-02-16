@@ -1,18 +1,39 @@
 %{
     #include "tokens.h"
-    #include<string.h>
+    #include <string.h>
+    #include <ctype.h>
 
-    #define MAX_INCLUDE_DEPTH 2
-    YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
+    #define MAX_INCLUDE_DEPTH 256
+    #define MAX_REPLACEMENT_LENGTH 4096
+
     int include_stack_ptr = 0;
     int yylval;
     int yywrap();
+    struct stack {
+        struct stack *prev[MAX_INCLUDE_DEPTH];
+        YY_BUFFER_STATE buf;
+        int lineno;
+        char *filename;
+        FILE *f;
+        int ifdef_count;
+        int endif_count;
+        int else_count;
+        char *define[20];
+        int define_ptr;
+        int size;
+    };
     
+    char *include_files[MAX_INCLUDE_DEPTH];
+    int include_files_ptr = 0;
 %}
+
 %option yylineno
 
 %% 
-
+\/\/.*                 { }
+\/\*.*\*\/             { }
+[/][*][^*]*[*]+([^*/][^*]*[*]+)*[/]       { /* DO NOTHING */ }
+[/][*]               { printf("%s Error near tricky.txt line %d Unclosed comment\n", current_fname, yylineno); exit(1); }
 "("                  { return LPAR; }          
 ")"                  { return RPAR; }
 "["                  { return LBRACKET; }
@@ -69,53 +90,153 @@
 \".*\"               { return STRCONST; }
 \'.*\'              { return CHARCONST;}
 
-[ \t\r]*            { }
-\n                  { }
-\/\*.*\*\/          { }
-\/\/.*\\n           { }
+[ \t\r]*            { /* Ignore */ }
+\n                  { /* Ignore */ }
+
 
 [a-zA-Z][_a-zA-Z0-9]*           { return IDENT; }
 
 #include[ \t]*<.*>    {return DIRECTIVES; }
 #include[ \t]*\"(.*)?\"\n   { /* got the include file name */
-                    if ( include_stack_ptr >= MAX_INCLUDE_DEPTH ) {
-                        fprintf( stderr, "ERROR: include cycles detected. Exiting..\n" );
-                        exit( 1 );
-                   }
-
-                    include_stack[include_stack_ptr++] = YY_CURRENT_BUFFER;
-                    printf("back to lexer %s\n", yytext); 
-                    char *f;// = strdup(yytext);
-                    f = strtok(yytext, " ");
-                    f = strtok(NULL, " ");
-                    f++;
-                    f[strlen(f)-2] = 0;
-                    yyin = fopen( f, "r" );
-
-                    if ( !yyin ) {
-                        printf("Error opening include file: %s\n", f);
+                        if ( include_stack_ptr >= MAX_INCLUDE_DEPTH) {
+                            fprintf( stderr, "ERROR: include cycles detected. Exiting..\n" );
+                            exit( 1 );
+                        }
+                        char *fn;
+                        fn = strtok(yytext, " ");
+                        fn = strtok(NULL, " ");
+                        fn++;
+                        fn[strlen(fn)-2] = 0;
+                        initialize_current_struct(fn);
                     }
 
-                    yy_switch_to_buffer(yy_create_buffer( yyin, YY_BUF_SIZE ) );
-                    printf("begin initial\n");
-
-                    BEGIN(INITIAL);
+<<EOF>>         {   
+                    struct stack *bs = cur_stack;
+                    if( bs->ifdef_count > bs->endif_count) {
+                        printf("%s Error: mismatched ifdef directive\n", current_fname);
                     }
+                    
+                    struct stack **prevbs;
+                    if(!bs) return 0;
 
-<<EOF>>         {
-                    if ( include_stack_ptr == 0 ) {
+                    prevbs = bs->prev;
+                    fclose(bs->f);
+                    yy_delete_buffer(bs->buf);
+                    if(bs->size == 0) {
                         yyterminate();
-                    } else {
-                        yy_delete_buffer( YY_CURRENT_BUFFER );
-                        include_stack_ptr -= 1;
-                        yy_switch_to_buffer( include_stack[include_stack_ptr] );
                     }
+                    bs->size -= 1;
+                    yy_switch_to_buffer(prevbs[bs->size]->buf);
+                    cur_stack = prevbs[bs->size];
+                    cur_stack->size -= 1;
+                    yylineno = cur_stack->lineno;
+                    current_fname = cur_stack->filename;
+                    include_stack_ptr -= 1;
                 }  
+
+
+#define[ \t]+(.*?)[ \t]+(.*?)$    {
+                                    char *p = strtok(yytext, " ");
+                                    p = strtok(NULL, " ");
+                                    char *s, *word = p;
+                                    for ( ; *s; ++s) *s = tolower(*s);
+                                    YY_BUFFER_STATE buf;
+                                    buf = yy_scan_string(p);
+
+                                    int token;
+                                    token = yylex();
+                                    if (token < 57) {
+                                        printf("%s Error: Identifier is already in the set of preprocessor symbols %s\n", current_fname, word);
+                                    }
+                                    cur_stack->define[(cur_stack->define_ptr)++] = word;
+                                    yy_delete_buffer(buf);
+                                    yy_switch_to_buffer(cur_stack->buf);
+                                    p = strtok(NULL, " ");
+                                    int value_l = strlen(p);
+                                    if (value_l >= MAX_REPLACEMENT_LENGTH) {
+                                        printf("%s Error: replacement text length exceeded\n", current_fname);
+                                    }
+                                }
+
+#ifdef[ a-zA-Z0-9\t]+       {
+                                cur_stack->ifdef_count += 1;
+                                char *p;
+                                p = strtok(yytext, " ");
+                                p = strtok(NULL, " ");
+                                int idx;
+                                for (idx = 0; idx < cur_stack->define_ptr; idx++ ) {
+                                    if (strcmp(cur_stack->define[idx], p) != 0) {
+                                        printf("%s ERROR: ifdef %s is not defined\n", current_fname, p);
+                                    }
+                                }
+                            }        
+
+
+#endif                  { cur_stack->endif_count+= 1;
+                            if ( cur_stack->endif_count > cur_stack->ifdef_count ) {
+                                printf("%s Error: mismatched endif directive\n", current_fname);
+                            }
+                         }
+#ifndef                 {   cur_stack->ifdef_count += 1; 
+                            char *p;
+                            p = strtok(yytext, " ");
+                            p = strtok(NULL, " ");
+                            int idx;
+                            for (idx = 0; idx < cur_stack->define_ptr; idx++ ) {
+                                if (strcmp(cur_stack->define[idx], p) == 0) {
+                                    printf("%s ERROR: ifndef %s is defined\n", current_fname, p);
+                                }
+                            }
+                        }
+#else                   { cur_stack->else_count += 0;
+                          if (cur_stack->else_count > cur_stack->ifdef_count) {
+                              printf("%s Error: mismatched else directive\n", current_fname);
+                          }
+                        }
 .                   { return ERROR; } 
 
 %%
 
-int yywrap(){ return(1); }
+int yywrap() {
+    return(1); 
+}
 
+void initialize_current_struct(char *fn) {
+    FILE *f = fopen( fn, "r" );
 
-    
+    struct stack *bs;
+
+    int i;
+    for (i = 0; i < include_files_ptr; i++) {
+        if (strcmp(include_files[i],fn) == 0) {
+            printf("%s Error: Includes cycle\n", fn);
+            exit(1);
+        }
+    }
+    if ( !f ) {
+        printf("Error: Opening include file: %s\n", fn);
+        perror(fn);
+    } else {
+        include_stack_ptr += 1;
+        include_files[include_files_ptr++] = fn;
+        bs = malloc(sizeof(struct stack));
+        if(!bs) { perror("malloc"); exit(1); }
+        bs->size = 0;
+        if(cur_stack) {
+            cur_stack->lineno = yylineno;
+            bs->prev[bs->size++] = cur_stack;
+        }
+        bs->f = f;
+        bs->filename = fn;
+        bs->buf = yy_create_buffer(f, YY_BUF_SIZE);
+        yy_switch_to_buffer(bs->buf);
+        bs->ifdef_count = 0;
+        bs->endif_count = 0;
+        bs->else_count = 0;
+        bs->define_ptr = 0;
+        cur_stack = bs;
+        yylineno = 1;
+        current_fname = fn;
+        BEGIN(INITIAL);
+    }
+}

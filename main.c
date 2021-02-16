@@ -54,16 +54,10 @@ int main(int argc, char* argv[]) {
                 printf("Please provide the filename after -1\n");
             } else {
                 for(i = 2; i < argc; i++) {
-                    printf("LEXICAL ANALYSIS of file %s\n", argv[i]);
-                    //token_analyzer_util(argv[i]);
-                    //char *fname[] = argv[i];
-                    yyin = fopen(argv[i], "r");
-                    token_analyzer_util(argv[i]);
-                }
-                    
+                    initialize_current_struct(argv[i]);
+                    token_analyzer_util();
+                }    
             }
-            
-
             break;
         default:
             printf("Not implemented yet\n");
