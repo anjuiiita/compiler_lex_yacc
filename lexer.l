@@ -121,11 +121,10 @@
                 }  
 
 
-#define[ \t]+(.*?)[ \t]+(.*?)[ \t\n]+    { printf("defines %s\n", yytext);
+#define[ \t]+(.*?)[ \t]+(.*?)[ \t\n]+    {
                                     char *p = strtok(yytext, " ");
                                     p = strtok(NULL, " ");
-                                    char *s, *word = p;
-                                    for ( ; *s; ++s) *s = tolower(*s);
+                                    char *word = p;
                                     YY_BUFFER_STATE buf;
                                     buf = yy_scan_string(p);
 
