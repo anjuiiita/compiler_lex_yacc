@@ -220,8 +220,9 @@ void initialize_current_struct(char *fn) {
         if(!bs) { perror("malloc"); exit(1); }
         bs->size = 0;
         if(cur_stack) {
-            cur_stack->lineno = yylineno;
-            bs->prev[bs->size++] = cur_stack;
+            	cur_stack->lineno = yylineno;
+            	bs->prev[bs->size] = cur_stack;
+	    	bs->size += 1;
         }
         bs->f = f;
         bs->filename = fn;
@@ -256,17 +257,11 @@ int handle_end_of_file() {
         if( bs->ifdef_count > bs->endif_count) {
 		printf("%s Error: mismatched ifdef directive\n", current_fname);
         }
-	if (bs->size == 0) {
+	
+	bs->size -= 1;
+	if (bs->size >= 0) {
         	yy_switch_to_buffer(prevbs[bs->size]->buf);
         	cur_stack = prevbs[bs->size];
-        	yylineno = cur_stack->lineno;
-        	current_fname = cur_stack->filename;
-        	include_stack_ptr -= 1;
-	} else {
-        	bs->size -= 1;
-        	yy_switch_to_buffer(prevbs[bs->size]->buf);
-        	cur_stack = prevbs[bs->size];
-        	cur_stack->size -= 1;
         	yylineno = cur_stack->lineno;
         	current_fname = cur_stack->filename;
         	include_stack_ptr -= 1;
