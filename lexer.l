@@ -1,5 +1,6 @@
 %{
     #include "tokens.h"
+    #include "lex_main.h"
     #include <string.h>
     #include <ctype.h>
 
@@ -22,6 +23,9 @@
         int define_ptr;
         int size;
     };
+    char *current_fname;
+
+    struct stack*cur_stack;
     char *include_files[MAX_INCLUDE_DEPTH];
     int include_files_ptr = 0;
 %}
@@ -107,31 +111,13 @@
                         fn++;
                         fn[strlen(fn)-2] = 0;
                         initialize_current_struct(fn);
+			BEGIN(INITIAL);
                     }
 
-<<EOF>>         {   
-                    struct stack *bs = cur_stack;
-                    if( bs->ifdef_count > bs->endif_count) {
-                        printf("%s Error: mismatched ifdef directive\n", current_fname);
-                    }
-                    
-                    struct stack **prevbs;
-                    if(!bs) return 0;
-
-                    prevbs = bs->prev;
-                    fclose(bs->f);
-                    yy_delete_buffer(bs->buf);
-                    if(bs->size == 0) {
-                        yyterminate();
-                    }
-                    bs->size -= 1;
-                    yy_switch_to_buffer(prevbs[bs->size]->buf);
-                    cur_stack = prevbs[bs->size];
-                    cur_stack->size -= 1;
-                    yylineno = cur_stack->lineno;
-                    current_fname = cur_stack->filename;
-                    include_stack_ptr -= 1;
-                    yyterminate();
+<<EOF>>         {   int value = handle_end_of_file();
+		    if (value == 1) {
+			yyterminate();
+		    }
                 }  
 
 
@@ -248,6 +234,42 @@ void initialize_current_struct(char *fn) {
         cur_stack = bs;
         yylineno = 1;
         current_fname = fn;
-        BEGIN(INITIAL);
+	token_analyzer_util(current_fname);
+	BEGIN(INITIAL);
     }
+}
+
+int handle_end_of_file() {
+	struct stack *bs = cur_stack;
+
+        struct stack **prevbs;
+        if(!bs) {
+		return 0;
+	}
+	if (!bs->prev) return 0;
+        prevbs = bs->prev;
+        fclose(bs->f);
+        yy_delete_buffer(bs->buf);
+        if(!prevbs) {
+		return 0;
+        }
+        if( bs->ifdef_count > bs->endif_count) {
+		printf("%s Error: mismatched ifdef directive\n", current_fname);
+        }
+	if (bs->size == 0) {
+        	yy_switch_to_buffer(prevbs[bs->size]->buf);
+        	cur_stack = prevbs[bs->size];
+        	yylineno = cur_stack->lineno;
+        	current_fname = cur_stack->filename;
+        	include_stack_ptr -= 1;
+	} else {
+        	bs->size -= 1;
+        	yy_switch_to_buffer(prevbs[bs->size]->buf);
+        	cur_stack = prevbs[bs->size];
+        	cur_stack->size -= 1;
+        	yylineno = cur_stack->lineno;
+        	current_fname = cur_stack->filename;
+        	include_stack_ptr -= 1;
+	}
+	return 1;
 }

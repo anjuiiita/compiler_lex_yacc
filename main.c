@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lex_main.h"
+#include "tokens.h"
 
 int main(int argc, char* argv[]) {
     int c, i;
@@ -55,7 +55,6 @@ int main(int argc, char* argv[]) {
             } else {
                 for(i = 2; i < argc; i++) {
                     initialize_current_struct(argv[i]);
-                    token_analyzer_util();
                 }    
             }
             break;

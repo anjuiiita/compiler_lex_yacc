@@ -2,9 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "tokens.h"
 
-int token_analyzer_util() {
+void token_analyzer_util(char * current_fname) {
     int token = yylex();
     while (token) {
         switch (token)
@@ -162,9 +161,6 @@ int token_analyzer_util() {
         case CHARCONST:
             printf("%s line %d text %s token CHARCONST\n", current_fname, yylineno, yytext);
             break;
-        case ERROR:
-            printf("Error: Bad Character in file %s in line %d text %s\n", current_fname, yylineno, yytext);
-            break;
         case DIRECTIVES:
             printf("Warning: ignoring %s directive in %s line %d\n", yytext, current_fname, yylineno);
             break;
@@ -174,6 +170,6 @@ int token_analyzer_util() {
         }
         token = yylex();
     }
-    fclose(yyin);
-    return yylval;
+    //fclose(yyin);
+    //return yylval;
 }
