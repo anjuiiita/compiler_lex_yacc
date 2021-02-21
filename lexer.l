@@ -121,7 +121,7 @@
                 }  
 
 
-#define[ \t]+(.*?)[ \t]+(.*?)[ \t\n]+    {
+#define[ \t]+(.*?)[ \t]+(.*?)[ \t\n]+    { printf("defines %s\n", yytext);
                                     char *p = strtok(yytext, " ");
                                     p = strtok(NULL, " ");
                                     char *s, *word = p;
