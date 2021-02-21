@@ -60,9 +60,9 @@ extern int yylineno;
 extern char* yytext;
 extern FILE *yyin, *yyout;
 
-char *current_fname;
+extern char *current_fname;
 
-struct stack*cur_stack;
-void initialize_current_struct();
+extern struct stack*cur_stack;
+extern void initialize_current_struct();
 
 int yylex();
