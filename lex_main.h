@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 void token_analyzer_util(char * current_fname) {
     int token = yylex();
     while (token) {
@@ -161,7 +160,7 @@ void token_analyzer_util(char * current_fname) {
         case CHARCONST:
             printf("%s line %d text %s token CHARCONST\n", current_fname, yylineno, yytext);
             break;
-	case ERROR:
+	    case ERROR:
             printf("Error: Bad Character in file %s in line %d text %s\n", current_fname, yylineno, yytext);
             break;
         case DIRECTIVES:
@@ -173,6 +172,4 @@ void token_analyzer_util(char * current_fname) {
         }
         token = yylex();
     }
-    //fclose(yyin);
-    //return yylval;
 }

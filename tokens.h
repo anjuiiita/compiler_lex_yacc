@@ -1,4 +1,4 @@
-enum yytokentype {       
+/*enum yytokentype {       
     LPAR = 1,
     RPAR = 2,
     LBRACKET = 3,
@@ -53,16 +53,14 @@ enum yytokentype {
     CHARCONST = 61,
     ERROR = 62,
     DIRECTIVES = 63
-};
+};*/
 
-extern int yylval;
-extern int yylineno;
-extern char* yytext;
-extern FILE *yyin, *yyout;
+//extern int yylval;
+//extern int yylineno;
+//extern char* yytext;
+//extern FILE *yyin, *yyout;
 
-//char *current_fname;
-
-//struct stack*cur_stack;
+void token_analyzer_util(char *current_fname);
 void initialize_current_struct();
+int initialize_parser();
 int handle_end_of_file();
-int yylex();

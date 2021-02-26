@@ -58,6 +58,17 @@ int main(int argc, char* argv[]) {
                 }    
             }
             break;
+        case '2':
+            if (argc < 3) {
+                printf("Please provide the filename after -1\n");
+            } else {
+                initialize_parser(argv[2]);
+                //for(i = 2; i < argc; i++) {
+                    //initialize_current_struct(argv[i]);
+                
+                //}    
+            }
+            break;
         default:
             printf("Not implemented yet\n");
                 break;
