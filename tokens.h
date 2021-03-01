@@ -64,3 +64,4 @@ void token_analyzer_util(char *current_fname);
 void initialize_current_struct();
 int initialize_parser();
 int handle_end_of_file();
+void print_parsed_tokens();

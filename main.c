@@ -63,10 +63,7 @@ int main(int argc, char* argv[]) {
                 printf("Please provide the filename after -1\n");
             } else {
                 initialize_parser(argv[2]);
-                //for(i = 2; i < argc; i++) {
-                    //initialize_current_struct(argv[i]);
-                
-                //}    
+                print_parsed_tokens();  
             }
             break;
         default:

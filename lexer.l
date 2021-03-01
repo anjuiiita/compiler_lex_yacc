@@ -29,7 +29,27 @@
     struct stack*cur_stack;
     char *include_files[MAX_INCLUDE_DEPTH];
     int include_files_ptr = 0;
-
+    char *global[MAX_INCLUDE_DEPTH];
+    int global_itr = 0;
+    //char *local [MAX_INCLUDE_DEPTH];
+    //int local_itr = 0;
+    int inside_func = 0;
+    int func_def = 0;
+    struct function {
+        char *name;
+        char *local_var[MAX_INCLUDE_DEPTH];
+        char *param[MAX_INCLUDE_DEPTH];
+        int local_itr;
+        int param_itr;
+    };
+    struct function *cur_func;
+    struct function *func_list[MAX_INCLUDE_DEPTH];
+    int func_list_itr = 0;
+    int begin_func = 0;
+    struct function *proto_list[MAX_INCLUDE_DEPTH];
+    int proto_itr = 0;
+    struct function *global_struct[MAX_INCLUDE_DEPTH];
+    int global_struct_itr = 0;
 %}
 
 %option yylineno
@@ -39,15 +59,51 @@
 \/\*.*\*\/             { }
 [/][*][^*]*[*]+([^*/][^*]*[*]+)*[/]       { /* DO NOTHING */ }
 [/][*]               { printf("%s Error near tricky.txt line %d Unclosed comment\n", current_fname, yylineno); exit(1); }
-"("                  { return LPAR; }          
-")"                  { return RPAR; }
+"("                  {   
+                        if ( begin_func ) {
+                            func_def = 1;
+                            cur_func = malloc(sizeof(struct function));
+                            cur_func->name = yylval.ident;
+                            begin_func = 0;
+                        }
+                        return LPAR; 
+                    }          
+")"                  { 
+                        if (func_def && cur_func)
+                            cur_func->param[cur_func->param_itr++] = yylval.ident;
+                        func_def = 0; 
+                        return RPAR; 
+                     }
 "["                  { return LBRACKET; }
 "]"                  { return RBRACKET; }
-"{"                  { return LBRACE; }
-"}"                  { return RBRACE; }
+"{"                  { inside_func = 1; return LBRACE; }
+"}"                  { 
+                        if (cur_func) {
+                            func_list[func_list_itr++] = cur_func;
+                            cur_func = NULL;
+                        }
+                        inside_func = 0; 
+                        return RBRACE; 
+                     }
 "."                  { return DOT; }
-","                  { return COMMA; }
-";"                  { return SEMI; }
+","                  { if (func_def && cur_func)
+                            cur_func->param[cur_func->param_itr++] = yylval.ident;
+                        if (!func_def && inside_func && begin_func && cur_func)
+                            cur_func->local_var[cur_func->local_itr++] = yylval.ident;
+                        if (!func_def && !inside_func)
+                            global[global_itr++] = yylval.ident;
+                        return COMMA; 
+                     }
+";"                  { if (!inside_func && cur_func) {
+                            proto_list[proto_itr++] = cur_func;
+                        }
+                        if (inside_func && cur_func && begin_func) 
+                            cur_func->local_var[cur_func->local_itr++] = yylval.ident;
+                        if (!func_def && !inside_func)
+                            global[global_itr++] = yylval.ident;
+                        begin_func = 0;
+                        return SEMI; 
+                     }
 "?"                  { return QUEST; }
 ":"                  { return COLON; }
 "+"                  { return PLUS; }
@@ -75,12 +131,17 @@
 "<"                  { return LT; }
 "<="                 { return LE; }
 
-"void"               { return TYPE; }     
-"char"               { return TYPE; }
-"int"                { return TYPE; }
-"float"              { return TYPE; }
+"void"               { begin_func = 1; return TYPE; }     
+"char"               { begin_func = 1; return TYPE; }
+"int"                { begin_func = 1; return TYPE; }
+"float"              { begin_func = 1; return TYPE; }
 "const"              { return CONST; }
-"struct"             { return STRUCT; }
+"struct"             { 
+                        if (!inside_func) {
+                            global_struct[global_struct_itr++] = yylval.ident;
+                        }
+                        return STRUCT; 
+                     }
 "for"                { return FOR; }
 "while"              { return WHILE; }
 "do"                 { return DO; }
@@ -94,7 +155,7 @@
 "continue"           { return CONTINUE; }
 "return"             { return RETURN; }        
 
-[0-9]+               { yylval = atoi(yytext); return INTCONST; }
+[0-9]+               { return INTCONST; }
 [-+]?[0-9]+\.?[0-9]+([eE][-+]?[0-9]+)? { return REALCONST; }
 \".*\"               { return STRCONST; }
 \'.*\'              { return CHARCONST;}
@@ -102,7 +163,7 @@
 [ \t\r\n]*            { /* Ignore */ }
 
 
-[a-zA-Z_][a-zA-Z_0-9]*          { return IDENT; }
+[a-zA-Z_][a-zA-Z_0-9]*          { yylval.ident = strdup(yytext);  return IDENT; }
 
 #include[ \t]*<.*>    {return HEADER; }
 #include[ \t]*\"(.*)?\"\n   { /* got the include file name */
@@ -202,6 +263,37 @@ int yywrap() {
     return(1); 
 }
 
+void print_parsed_tokens() {
+    //printf("here %d\n", yylval.func_begin);
+    int i = 0, j;
+    printf("Global variables: \n");
+    printf("\t");
+    for (i = 0; i < global_itr; i++)
+        printf("%s ", global[i]);
+    printf("\n");
+    for (i = 0; i < func_list_itr; i++) {
+        struct function *func = func_list[i];
+        printf("Function %s\n", func->name);
+        printf("\tParameters: ");
+        for(int j = 0; j < func->param_itr; j++)
+            printf("%s ", func->param[j]);
+        printf("\n");
+        printf("\tLocal variables: ");
+        for(int j = 0; j < func->local_itr; j++)
+            printf("%s ", func->local_var[j]);
+        printf("\n");
+    }
+    
+    for (i = 0; i < proto_itr; i++) {
+        printf("Prototype %s\n", proto_list[i]->name);
+        printf("\tParameters: ");
+        for (j = 0; j < proto_list[i]->param_itr; j++) {
+            printf("%s ", proto_list[i]->param[j]);
+        }
+        printf("\n");
+    }
+}
+
 void initialize_current_struct(char *fn) {
     FILE *f = fopen( fn, "r" );
 
@@ -249,7 +341,6 @@ void initialize_current_struct(char *fn) {
 }
 
 int handle_end_of_file() {
-    printf("anju");
 	struct stack *bs = cur_stack;
 
     struct stack **prevbs;
