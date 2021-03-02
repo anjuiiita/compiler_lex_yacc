@@ -3,8 +3,8 @@ Usage:
 
 Valid modes:
 	 -0: Version information
-	 -1: Part 1 (not implemented yet)
-	 -2: Part 2 (not implemented yet)
+	 -1: Part 1 Token Analyzer
+	 -2: Part 2 Syntax Analyzer
 	 -3: Part 3 (not implemented yet)
 	 -4: Part 4 (not implemented yet)
 	 -5: Part 5 (not implemented yet)

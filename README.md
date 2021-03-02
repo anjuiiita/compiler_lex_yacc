@@ -40,6 +40,18 @@ If there is error opening include file, error is genrated and if a cycle if dete
 
 #ifdef indetifier if not defined then Error is printed.
 
+## Feature Part 2
+For part 2,  mode 2 is implemented which uses lex and yacc to tokenize the input file and build parse tree. To run mode 2 please run below command.
+
+mycc -2 <input_file>
+
+Part 1 and 0 are working as before.
+
+In part 2, it checks only the input file syntax.
+Production rules are defined to check the syntax
+EXTRA : variable initialization, CONSTANTS, STRUCT, struct member selection are defined.
+
+
 ## To read from input file please run below command
 
 mycc -o out.txt
