@@ -251,7 +251,7 @@ stmt_declarator				: IDENT													{$$ = newnode(none, none, yylineno,"stmt_
 							| stmt_declarator LBRACKET conditional_exp RBRACKET		{$$ = newnode("[", "]", yylineno,"stmt_declarator", none, none, none, 2, $1, $3);}		
 							| stmt_declarator LBRACKET RBRACKET						{$$ = newnode("[", "]", yylineno,"stmt_declarator", none, none, none, 1, $1);}		
 							;
-param_list					: param_decl											{$$=$1}
+param_list					: param_decl											{$$=$1;}
 							| param_list COMMA param_decl							{$$ = newnode(none, none, yylineno,"param_list", none, none, none, 2, $1, $3);}		
 							;
 param_decl					: stmt_specs stmt_declarator					{$$ = newnode(none, none, yylineno,"param_decl", none, none, none, 2, $1, $2);}		
