@@ -15,7 +15,6 @@ extern char* yytext;
 extern FILE *yyin, *yyout;
 char *filename;
 
-char indent[100]="";
 char* none = "none";
 char* type="TYPE";
 char *constt="CONST";
@@ -173,7 +172,7 @@ struct treeNode * newnode(char*lborder, char *rborder, int lineNo, char* nodeTyp
 
 %nonassoc "then"
 %nonassoc ELSE
-%start atree
+%start parseTree
 
 %type <ident>  INTCONST REALCONST STRCONST CHARCONST 
 %type <ident> PLUSASSIGN MINUSASSIGN STARASSIGN SLASHASSIGN ASSIGN assignment_operator
@@ -189,7 +188,7 @@ struct treeNode * newnode(char*lborder, char *rborder, int lineNo, char* nodeTyp
 %type <func_def> struct_decl struct_declarator_list type_name stat function_stmts stat_list selection_stat loop_stat exp_stat 
 %type <func_def> exp  
 %%
-atree						:program 									{printVariables($1);}
+parseTree					:program 									{printVariables($1);}
 program						: program_unit_list							{$$=$1;}
 							;
 program_unit_list			: program_unit 								{$$=$1;}
