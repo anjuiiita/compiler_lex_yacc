@@ -292,8 +292,8 @@ function_stmts				: LBRACE stmt_list stat_list RBRACE   	  			{$$=newnode("{", "
 							| LBRACE stmt_list	RBRACE							{$$=newnode("{", "}", yylineno, "function_stmts", none, none, none, 1, $2);}
 							| LBRACE RBRACE										{$$=newnode("{", "}", yylineno, "function_stmts", none, none, none, 0);}
 							;
-stat_list					: stat     									{$$=newnode(none, none, yylineno, "stat_list", none, none, none, 1, $1)}	
-							| stat_list stat  							{$$=newnode(none, none, yylineno, "stat_list", none, none, none, 2, $1, $2)}	
+stat_list					: stat     									{$$=newnode(none, none, yylineno, "stat_list", none, none, none, 1, $1);}	
+							| stat_list stat  							{$$=newnode(none, none, yylineno, "stat_list", none, none, none, 2, $1, $2);}	
 							;
 selection_stat				: IF LPAR exp RPAR stat 									%prec "then"		{$$=newnode(none, none, yylineno, "selection_stat", none, none, none, 2, $3, $5);}
 							| IF LPAR exp RPAR stat ELSE stat												{$$=newnode(none, none, yylineno, "selection_stat", none, none, none, 3, $3, $5, $7);}
