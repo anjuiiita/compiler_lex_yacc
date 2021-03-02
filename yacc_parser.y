@@ -407,8 +407,10 @@ int initialize_parser(char * filename) {
         yyparse();
     }
 	int i = 0, j;
-	printf("Global struct: \n");
-    printf("\t");
+	if (global_struct_itr > 0) {
+		printf("Global struct: \n");
+		printf("\t");
+	}
     for (i = 0; i < global_struct_itr; i++)
         printf("%s ", global_struct[i]);
     printf("\n");
