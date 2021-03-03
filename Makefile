@@ -1,6 +1,6 @@
 mycc: main.o lex_cc.o yacc_parser.tab.o
 	gcc -o mycc main.o lex_cc.o yacc_parser.tab.o 
-	#pdflatex developers
+	pdflatex developers
 
 main.o: main.c tokens.h
 	gcc -c main.c
