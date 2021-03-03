@@ -36,14 +36,14 @@ struct function {
 	char *param[100];
 	int local_itr;
 	int param_itr;
+	char *type;
 };
 struct function *cur_func;
 struct function *func_list[100];
 int func_list_itr = 0;
-struct function *proto_list[100];
-int proto_itr = 0;
 char *global_struct[100];
 int global_struct_itr = 0;
+int arr = 0;
 
 struct treeNode{
     struct treeNode *child[MAXCHILD];
@@ -60,8 +60,15 @@ void printVariables(struct treeNode* node){
 	if (!inside_func && strcmp(node->nodeType, "struct_spec") == 0 && strcmp(node->string, none) != 0) {
 		global_struct[global_struct_itr++] = node->string;
 	}
+	if (!inside_func && strcmp(node->nodeType, "stmt_declarator") == 0 && strcmp(node->lborder, none) != 0) {
+		arr = 1;
+	}
     if (!inside_func && strcmp(node->nodeType, "stmt_declarator") == 0 && strcmp(node->string, none) != 0) {
-		global[global_itr++] = node->string;
+		if (arr) {
+			arr = 0;
+			global[global_itr++] = strcat(node->string, "[]");
+		} else
+			global[global_itr++] = node->string;
 	}
 	//printf("%d %s\n", inside_func, node->nodeType);
 	if (!inside_func && strcmp(node->nodeType, "func_declarator") == 0 && strcmp(node->string, none) != 0) {
@@ -82,18 +89,34 @@ void printVariables(struct treeNode* node){
 			}
 			cur_func = malloc(sizeof(struct function));
 			cur_func->name = node->string;
+			cur_func->type = "";
 		}
 	}
+	if (inside_func && inside_param && strcmp(node->nodeType, "stmt_declarator") == 0 && strcmp(node->lborder, none) != 0) {
+		arr = 1;
+	}
+
 	if (inside_func && inside_param && strcmp(node->nodeType, "stmt_declarator") == 0) {
 		if (cur_func && strcmp(node->string, none) != 0) {
-			cur_func->param[cur_func->param_itr++] = node->string;
+			if (arr) {
+				arr = 0;
+				cur_func->param[cur_func->param_itr++] = strcat(node->string, "[]");
+			} else
+				cur_func->param[cur_func->param_itr++] = node->string;
+			
 		}
 	}
 	if (inside_func && strcmp(node->nodeType, "function_stmts") == 0) {
 		inside_param = 0;
 	}
-	if (inside_func && !inside_param && strcmp(node->nodeType, "stmt_declarator") == 0) {
-		if (cur_func && strcmp(node->string, none) != 0) {
+	if (inside_func && !inside_param && strcmp(node->nodeType, "stmt_declarator") == 0 && strcmp(node->lborder, none) != 0) {
+		arr = 1;
+	}
+	if (inside_func && !inside_param && strcmp(node->nodeType, "stmt_declarator") == 0 && cur_func && strcmp(node->string, none) != 0) {
+		if (arr) {
+			arr = 0;
+			cur_func->local_var[cur_func->local_itr++] = strcat(node->string, "[]");
+		} else {
 			cur_func->local_var[cur_func->local_itr++] = node->string;
 		}
 	}
@@ -106,7 +129,8 @@ void printVariables(struct treeNode* node){
 	}
 	if (inside_func && strcmp(node->lborder, "proto_end") == 0) {
 		if (cur_func) {
-			proto_list[proto_itr++] = cur_func;
+			cur_func->type = "proto";
+			func_list[func_list_itr++] = cur_func;
 			inside_func = 0;
 			cur_func = NULL;
 		}
@@ -407,38 +431,50 @@ int initialize_parser(char * filename) {
     }
 	int i = 0, j;
 	if (global_struct_itr > 0) {
-		printf("Global struct: \n");
+		printf("Global struct \n");
 		printf("\t");
+	
+		for (i = 0; i < global_struct_itr - 1; i++)
+			printf("%s, ", global_struct[i]);
+		printf("%s\n", global_struct[global_struct_itr - 1]);
 	}
-    for (i = 0; i < global_struct_itr; i++)
-        printf("%s ", global_struct[i]);
-    printf("\n");
-    printf("Global variables: \n");
-    printf("\t");
-    for (i = 0; i < global_itr; i++)
-        printf("%s ", global[i]);
-    printf("\n");
-    for (i = 0; i < func_list_itr; i++) {
-        struct function *func = func_list[i];
-        printf("Function %s\n", func->name);
-        printf("\tParameters: ");
-        for(int j = 0; j < func->param_itr; j++)
-            printf("%s ", func->param[j]);
-        printf("\n");
-        printf("\tLocal variables: ");
-        for(int j = 0; j < func->local_itr; j++)
-            printf("%s ", func->local_var[j]);
-        printf("\n");
+	if (global_itr > 0) {
+		printf("Global variables \n");
+		printf("\t");
+		for (i = 0; i < global_itr - 1; i++)
+			printf("%s, ", global[i]);
+		printf("%s\n", global[global_itr - 1]);
+	}
+	if (func_list_itr > 0) {
+		for (i = 0; i < func_list_itr; i++) {
+			struct function *func = func_list[i];
+			
+			char * type = "proto";
+			if (strcmp(func->type, type) == 0) {
+				printf("Prototype %s\n", func->name);
+				printf("\tParameters: ");
+				for (j = 0; j < func->param_itr -1; j++) {
+					printf("%s, ", func->param[j]);
+				}
+				printf("%s\n", func->param[func->param_itr - 1]);
+			} else {
+				printf("Function %s\n", func->name);
+				if (func->param_itr > 0) {
+					printf("\tParameters: ");
+					for(int j = 0; j < func->param_itr-1; j++)
+						printf("%s, ", func->param[j]);
+					printf("%s\n", func->param[func->param_itr-1]);
+				}
+				if (func->local_itr > 0) {
+					printf("\tLocal variables: ");
+					for(int j = 0; j < func->local_itr-1; j++)
+						printf("%s, ", func->local_var[j]);
+					printf("%s\n", func->local_var[func->local_itr-1]);
+				}
+			}
+		}
     }
     
-    for (i = 0; i < proto_itr; i++) {
-        printf("Prototype %s\n", proto_list[i]->name);
-        printf("\tParameters: ");
-        for (j = 0; j < proto_list[i]->param_itr; j++) {
-            printf("%s ", proto_list[i]->param[j]);
-        }
-        printf("\n");
-    }
 	if (success) {
 		printf("There are no errors. Syntactically, %s is correct.\n", filename);
 	}
