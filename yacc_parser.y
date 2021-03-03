@@ -13,13 +13,14 @@ int yylex();
 extern int yylineno;
 extern char* yytext;
 extern FILE *yyin, *yyout;
-char *filename;
+
+const char *errormsg;
+void yyerror (const char *mesg);
 
 char* none = "none";
 char* type="TYPE";
 char *constt="CONST";
 
-void yyerror (const char *mesg);
 int success = 1;
 #define YYDEBUG 1
 #define STR(VAR) (#VAR)
@@ -56,6 +57,7 @@ struct treeNode{
     int lineNo;
     int Nchildren;
 };
+
 void printVariables(struct treeNode* node){
 	if (!inside_func && strcmp(node->nodeType, "struct_spec") == 0 && strcmp(node->string, none) != 0) {
 		global_struct[global_struct_itr++] = node->string;
@@ -429,6 +431,7 @@ int initialize_parser(char * filename) {
         yyin = f;
         yyparse();
     }
+
 	int i = 0, j;
 	if (global_struct_itr > 0) {
 		printf("Global struct \n");
@@ -477,12 +480,14 @@ int initialize_parser(char * filename) {
     
 	if (success) {
 		printf("There are no errors. Syntactically, %s is correct.\n", filename);
+	} else {
+		printf("Error near %s line %d text %s \n\t%s\n", filename, yylineno, yytext, errormsg);
 	}
     return 0;
 }
 
 void yyerror(const char* mesg)
 {
-    printf("Error near %s line %d text %s \n\t%s\n", filename, yylineno, yytext, mesg);
 	success = 0;
+	errormsg = mesg;
 }
