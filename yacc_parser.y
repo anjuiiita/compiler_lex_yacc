@@ -214,15 +214,16 @@ struct treeNode * newnode(char*lborder, char *rborder, int lineNo, char* nodeTyp
 %type <func_def> struct_decl struct_declarator_list type_name stat function_stmts stat_list selection_stat loop_stat exp_stat 
 %type <func_def> exp  
 %%
-parseTree					:program 									{printVariables($1);}
+parseTree					:program 									//{printVariables($1);}
 program						: program_unit_list							{$$=$1;}
 							;
 program_unit_list			: program_unit 								{$$=$1;}
 							| program_unit_list program_unit       		{$$=newnode(none, none, yylineno, "program", none, none, none, 2, $1, $2);}
 							;
 
-program_unit				: function_definition						{$$=$1;}
-							| stmt										{$$=$1;}
+program_unit				: function_definition						{printVariables($1);}
+							| stmt										{printVariables($1);}
+							| init_declarator							{printVariables($1);}
 							;
 function_definition			: stmt_specs func_declarator function_stmts			{$$=newnode(none, none, yylineno, "function_definition", none, none, none, 3, $1, $2, $3);}
 							| stmt_specs func_declarator	    			{$$=newnode(none, none, yylineno, "function_definition", none, none, none, 2, $1, $2);}
@@ -266,8 +267,6 @@ struct_declarator_list		: stmt_declarator									{$$=newnode(none, none, yyline
 							| struct_declarator_list COMMA stmt_declarator		{$$=newnode(none, none, yylineno, "struct_declarator_list", none, none, none, 2, $1, $3);}
 							;
 func_declarator				: IDENT													{$$ = newnode(none, none, yylineno, "func_declarator", $1, none, none, 0);}
-							//| func_declarator LBRACKET conditional_exp RBRACKET		{$$ = newnode("[", "]", yylineno,"func_declarator", none, none, none, 2, $1, $3);}					
-							//| func_declarator LBRACKET RBRACKET			{$$ = newnode("[", "]", yylineno,"func_declarator", none, none, none, 1, $1);}					
 							| func_declarator LPAR param_list RPAR 		{$$ = newnode("(", ")", yylineno,"func_declarator", none, none, none, 2, $1, $3);}								
 							| func_declarator LPAR id_list RPAR 		{$$ = newnode("(", ")", yylineno,"func_declarator", none, none, none, 2, $1, $3);}							
 							| func_declarator LPAR RPAR 				{$$ = newnode("(", ")", yylineno,"func_declarator", none, none, none, 1, $1);}								
@@ -432,21 +431,28 @@ int initialize_parser(char * filename) {
         yyparse();
     }
 
+	if (success) {
+		//fprintf(stdout, "There are no errors. Syntactically, %s is correct.\n", filename);
+	} else {
+		fprintf(stderr, "Error near %s line %d text '%s' \n\t%s\n", filename, yylineno, yytext, errormsg);
+	}
+
 	int i = 0, j;
 	if (global_struct_itr > 0) {
-		printf("Global struct \n");
-		printf("\t");
+		fprintf(stdout, "Global struct \n");
+		fprintf(stdout, "\t");
 	
 		for (i = 0; i < global_struct_itr - 1; i++)
-			printf("%s, ", global_struct[i]);
-		printf("%s\n", global_struct[global_struct_itr - 1]);
+			fprintf(stdout, "%s, ", global_struct[i]);
+		fprintf(stdout, "%s\n", global_struct[global_struct_itr - 1]);
 	}
 	if (global_itr > 0) {
-		printf("Global variables \n");
-		printf("\t");
+		fprintf(stdout, "Global variables \n");
+		fprintf(stdout, "\t");
 		for (i = 0; i < global_itr - 1; i++)
-			printf("%s, ", global[i]);
-		printf("%s\n", global[global_itr - 1]);
+			fprintf(stdout, "%s, ", global[i]);
+		fprintf(stdout, "%s\n", global[global_itr - 1]);
+		fprintf(stdout, "\n");
 	}
 	if (func_list_itr > 0) {
 		for (i = 0; i < func_list_itr; i++) {
@@ -454,35 +460,32 @@ int initialize_parser(char * filename) {
 			
 			char * type = "proto";
 			if (strcmp(func->type, type) == 0) {
-				printf("Prototype %s\n", func->name);
-				printf("\tParameters: ");
+				fprintf(stdout, "Prototype %s\n", func->name);
+				fprintf(stdout, "\tParameters: ");
 				for (j = 0; j < func->param_itr -1; j++) {
-					printf("%s, ", func->param[j]);
+					fprintf(stdout, "%s, ", func->param[j]);
 				}
-				printf("%s\n", func->param[func->param_itr - 1]);
+				fprintf(stdout, "%s\n", func->param[func->param_itr - 1]);
 			} else {
-				printf("Function %s\n", func->name);
+				fprintf(stdout, "Function %s\n", func->name);
 				if (func->param_itr > 0) {
-					printf("\tParameters: ");
+					fprintf(stdout, "\tParameters: ");
 					for(int j = 0; j < func->param_itr-1; j++)
-						printf("%s, ", func->param[j]);
-					printf("%s\n", func->param[func->param_itr-1]);
+						fprintf(stdout, "%s, ", func->param[j]);
+					fprintf(stdout, "%s\n", func->param[func->param_itr-1]);
 				}
 				if (func->local_itr > 0) {
-					printf("\tLocal variables: ");
+					fprintf(stdout, "\tLocal variables: ");
 					for(int j = 0; j < func->local_itr-1; j++)
-						printf("%s, ", func->local_var[j]);
-					printf("%s\n", func->local_var[func->local_itr-1]);
+						fprintf(stdout, "%s, ", func->local_var[j]);
+					fprintf(stdout, "%s\n", func->local_var[func->local_itr-1]);
 				}
 			}
+			fprintf(stdout, "\n");
 		}
     }
     
-	if (success) {
-		printf("There are no errors. Syntactically, %s is correct.\n", filename);
-	} else {
-		printf("Error near %s line %d text %s \n\t%s\n", filename, yylineno, yytext, errormsg);
-	}
+	
     return 0;
 }
 
