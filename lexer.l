@@ -74,10 +74,10 @@
 "<"                  { return LT; }
 "<="                 { return LE; }
 
-"void"               { yylval.ident = strdup(yytext); /*begin_func = 1;*/ return TYPE; }     
-"char"               { yylval.ident = strdup(yytext); /*begin_func = 1;*/ return TYPE; }
-"int"                { yylval.ident = strdup(yytext); /*begin_func = 1;*/ return TYPE; }
-"float"              { yylval.ident = strdup(yytext); /*begin_func = 1;*/ return TYPE; }
+"void"               { yylval.ident = strdup(yytext); return VOID; }     
+"char"               { yylval.ident = strdup(yytext); return CHAR; }
+"int"                { yylval.ident = strdup(yytext); return INT; }
+"float"              { yylval.ident = strdup(yytext); return FLOAT; }
 "const"              { return CONST; }
 "struct"             { 
                         /*begin_func = 0;
@@ -391,8 +391,17 @@ void token_analyzer_util(char * current_fname) {
         case LE:
             printf("%s line %d text %s token LE\n", current_fname, yylineno, yytext);
             break;
-        case TYPE:
-            printf("%s line %d text %s token TYPE\n", current_fname, yylineno, yytext);
+        case INT:
+            printf("%s line %d text %s token INT\n", current_fname, yylineno, yytext);
+            break;
+        case CHAR:
+            printf("%s line %d text %s token CHAR\n", current_fname, yylineno, yytext);
+            break;
+        case VOID:
+            printf("%s line %d text %s token VOID\n", current_fname, yylineno, yytext);
+            break;
+        case FLOAT:
+            printf("%s line %d text %s token FLOAT\n", current_fname, yylineno, yytext);
             break;
         case CONST:
             printf("%s line %d text %s token CONST\n", current_fname, yylineno, yytext);

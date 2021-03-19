@@ -65,6 +65,13 @@ int main(int argc, char* argv[]) {
                 initialize_parser(argv[2]);
             }
             break;
+        case '3':
+            if (argc < 3) {
+                printf("Please provide the filename after -1\n");
+            } else {
+                semantic_analyzer(argv[2]);
+            }
+            break;
         default:
             printf("Not implemented yet\n");
                 break;
