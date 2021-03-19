@@ -55,6 +55,7 @@ char *data_type = "none";
 int return_data = 0;
 char * error_statement[100];
 int statement_itr = 0;
+int proto = 0;
 
 
 struct treeNode{
@@ -216,14 +217,16 @@ void printVariables(struct treeNode* node) {
 
                     error_statement[statement_itr++] = return_error;
                 }
-				func_list[func_list_itr++] = cur_func;
-                cur_func = NULL;
                 
 			}
-			cur_func = malloc(sizeof(struct function));
-			cur_func->name = node->string;
-			cur_func->type = "";
-			cur_func->dataType = data_type;
+            if (!cur_func) {
+                cur_func = malloc(sizeof(struct function));
+                cur_func->name = node->string;
+                cur_func->type = "";
+                if(proto)
+                    cur_func->type = "proto";
+                cur_func->dataType = data_type;
+            }
 		}
 	}
 	if (inside_func && inside_param && strcmp(node->nodeType, "stmt_declarator") == 0 && strcmp(node->lborder, none) != 0) {
@@ -331,30 +334,15 @@ void printVariables(struct treeNode* node) {
         }
 	}
 	if (inside_func && strcmp(node->lborder, "return") == 0) {
-		if (cur_func) {
-			func_list[func_list_itr++] = cur_func;
-			inside_func = 0;
-			cur_func = NULL;
-			return_data = 1;
-		}
+		return_data = 1;
+	}
+    if (strcmp(node->nodeType, "function_proto") == 0) {
+        inside_func = 1;
+        proto = 1;
 	}
 	if (inside_func && strcmp(node->lborder, "return_semi") == 0) {
-		if (cur_func) {
-			if (strcmp(cur_func->dataType, "void") != 0) {
+		if (cur_func && strcmp(cur_func->dataType, "void") != 0) {
 				error_statement[statement_itr++] = strcat("Returning void in a function of type ", cur_func->dataType);
-			}
-			func_list[func_list_itr++] = cur_func;
-			inside_func = 0;
-			cur_func = NULL;
-			
-		}
-	}
-	if (inside_func && strcmp(node->lborder, "proto_end") == 0) {
-		if (cur_func) {
-			cur_func->type = "proto";
-			func_list[func_list_itr++] = cur_func;
-			inside_func = 0;
-			cur_func = NULL;
 		}
 	}
 
@@ -442,13 +430,12 @@ program_unit_list			: program_unit 								{$$=$1;}
 							| program_unit_list program_unit       		{$$=newnode(none, none, yylineno, "program", none, none, none, 2, $1, $2);}
 							;
 
-program_unit				: function_definition						{printVariables($1); if(cur_func)   func_list[func_list_itr++] = cur_func; cur_func= NULL;}
+program_unit				: function_definition						{printVariables($1); if(cur_func) { func_list[func_list_itr++] = cur_func; cur_func= NULL;} inside_func = 0; proto = 0;}
 							| stmt										{printVariables($1);}
 							| init_declarator							{printVariables($1);}
-							;
+                            ;
 function_definition			: stmt_specs func_declarator function_stmts		{$$=newnode(none, none, yylineno, "function_definition", none, none, none, 3, $1, $2, $3);}
-							| stmt_specs func_declarator	    			{$$=newnode(none, none, yylineno, "function_definition", none, none, none, 2, $1, $2);}
-							| SEMI											{$$=newnode("proto_end", none, yylineno, "function_definition", none, none, none, 0);}
+							| stmt_specs func_declarator SEMI	    		{$$=newnode("proto", none, yylineno, "function_proto", none, none, none, 2, $1, $2);}
 							;
 stmt						: stmt_specs init_declarator_list SEMI 		{$$=newnode(none, none, yylineno, "stmt", none, none, none, 2, $1, $2);}
 							| stmt_specs SEMI							{$$=newnode(none, none, yylineno, "stmt", none, none, none, 1, $1);}
@@ -490,10 +477,9 @@ type_spec_list				: type_spec type_spec_list							{$$=newnode(none, none, yylin
 struct_declarator_list		: stmt_declarator									{$$=newnode(none, none, yylineno, "struct_declarator_list", none, none, none, 1, $1);}
 							| struct_declarator_list COMMA stmt_declarator		{$$=newnode(",", none, yylineno, "struct_declarator_list", none, none, none, 2, $1, $3);}
 							;
-func_declarator				: IDENT													{$$ = newnode(none, none, yylineno, "func_declarator", $1, none, none, 0);}
-							| func_declarator LPAR param_list RPAR 		{$$ = newnode("(", ")", yylineno,"func_declarator", none, none, none, 2, $1, $3);}								
-							| func_declarator LPAR id_list RPAR 		{$$ = newnode("(", ")", yylineno,"func_declarator", none, none, none, 2, $1, $3);}							
-							| func_declarator LPAR RPAR 				{$$ = newnode("(", ")", yylineno,"func_declarator", none, none, none, 1, $1);}								
+func_declarator				: IDENT LPAR param_list RPAR 		{$$ = newnode("(", ")", yylineno,"func_declarator", $1, none, none, 1, $3);}								
+							| IDENT LPAR id_list RPAR 		    {$$ = newnode("(", ")", yylineno,"func_declarator", $1, none, none, 1, $3);}							
+							| IDENT LPAR RPAR 				    {$$ = newnode("(", ")", yylineno,"func_declarator", $1, none, none, 0);}								
 							;
 stmt_declarator				: IDENT													{$$ = newnode(none, none, yylineno,"stmt_declarator", $1, none, none, 0);}		
 							| stmt_declarator LBRACKET conditional_exp RBRACKET		{$$ = newnode("[", "]", yylineno,"stmt_declarator", none, none, none, 2, $1, $3);}		
@@ -755,7 +741,7 @@ int semantic_analyzer(char * filename) {
         
         char * type = "proto";
         if (strcmp(func->type, type) == 0) {
-            fprintf(stdout, "Prototype %s, returns %s\n", func->name, func->dataType);
+            fprintf(stdout, "Prototype %s\n", func->name);
             fprintf(stdout, "\tParameters:\n");
             for (j = 0; j < func->param_itr; j++) {
                 fprintf(stdout, "\t\t%s\n", func->param[j]);
