@@ -102,7 +102,7 @@ char* verifyVariable(char * value) {
     for (int i = 0; i < func_list_itr; i++) {
         struct function * cur_f = func_list[i];
         if (strcmp(cur_f->name, value) == 0) {
-            return cur_func->dataType;
+            return cur_f->dataType;
         }
         for (int j = 0; j < cur_f->symbol_itr; j++) {
             if (strcmp(cur_f->symbol_table[j]->var, value) == 0) {
@@ -116,6 +116,10 @@ char* verifyVariable(char * value) {
             if (strcmp(cur_func->symbol_table[i]->var, value) == 0) {
                 return cur_func->symbol_table[i]->dataType;
             }
+        }
+        
+        if (strcmp(cur_func->name, value) == 0) {
+            return cur_func->dataType;
         }
     }
 
@@ -174,12 +178,12 @@ void typeChecking(struct treeNode * node) {
                 cur_func->statements[cur_func->statement_itr++] = final_str;
             } else {
                 local_dt = dt;
-                char * str1 = "line";
-                char * str2 = (char*)malloc(1);
-                sprintf( str2, "%d", node->lineNo);
-                char * str3 = "\n\tUndeclared identifier:";
-                char * err_msg = constructErrStmt(str1, " ", str2, str3);
-                error_statement[statement_itr++] = constructErrStmt(err_msg, " ", node->string, " ");
+                char * str1 = (char*)malloc(1);
+                sprintf( str1, "%d", node->lineNo);
+                char * str2 = "\n\tUndeclared identifier:";
+                char * str3 = " ";
+                char * str4 = node->string;
+                error_statement[statement_itr++] = constructErrStmt(str1, str2, str3, str4);
             }
         }
     } else {
@@ -187,12 +191,12 @@ void typeChecking(struct treeNode * node) {
             char * dt = verifyVariable(node->string);
             if (strcmp(dt, none) == 0) {
                 local_dt = dt;
-                char * str1 = "line";
-                char * str2 = (char*)malloc(1);
-                sprintf( str2, "%d", node->lineNo);
-                char * str3 = "\n\tUndeclared identifier:";
-                char * err_msg = constructErrStmt(str1, " ", str2, str3);
-                error_statement[statement_itr++] = constructErrStmt(err_msg, " ", node->string, " ");
+                char * str1 = (char*)malloc(1);
+                sprintf( str1, "%d", node->lineNo);
+                char * str2 = "\n\tUndeclared identifier:";
+                char * str3 = " ";
+                char * str4 = node->string;
+                error_statement[statement_itr++] = constructErrStmt(str1, str2, str3, str4);
                 if (inside_func && cur_func) {
                     char * str1 = (char*)malloc(1);
                     sprintf( str1, "%d", node->lineNo );
@@ -311,12 +315,13 @@ struct function* checkVarType(char * value) {
     return NULL;
 }
 
-int getParamters(struct treeNode*node, int param_count) {
+int getParameters(struct treeNode*node, int param_count) {
     if (strcmp(node->lborder, ",") == 0) {
         param_count++;
     }
+
     for (int i = 0; i < node->Nchildren; i++) {
-        param_count = getParamters(node->child[i], param_count);
+        param_count = getParameters(node->child[i], param_count);
     }
     return param_count;
 }
@@ -327,10 +332,12 @@ void functionTypeChecking(struct treeNode*node, int param_count) {
         struct function * var_f = checkVarType(node->string);
         if (var_f) {
             if (strcmp(var_f->name, node->string) == 0) {
-                param_f = var_f;
+                memcpy(param_f, var_f, sizeof (*param_f));
                 if (param_count + 1 != var_f->param_itr) {
+                    param_f = NULL;
                     char * str1 = (char*)malloc(1);
                     sprintf( str1, "%d", node->lineNo );
+                    cur_func_line = node->lineNo;
                     char * str2 = "\n\tParameter mismatch in function call \n\t";
                     char * str3 = var_f->name;
                     char * str4 = constructErrStmt(str1, str2, str3, "(");
@@ -348,14 +355,16 @@ void functionTypeChecking(struct treeNode*node, int param_count) {
             char * str4 = " has not been declared.";
             error_statement[statement_itr++] = constructErrStmt(str1, str2, str3, str4);
         }
-    }
-
+    } 
+    
     if (strcmp(node->value, none) != 0) {
         if (param_f) {
             char * var_type = checkVariableDatatype(node->value);
             int param_exists = 0;
             for (int i = 0; i < param_f->param_itr; i++) {
-                char * param_type = strtok(param_f->param[i], " ");
+                char * func_params = malloc(20);
+                strcpy(func_params, param_f->param[i]);
+                char * param_type = strtok(func_params, " ");
                 if (strcmp(var_type, param_type) == 0) {
                     param_exists = 1;
                 }
@@ -363,10 +372,19 @@ void functionTypeChecking(struct treeNode*node, int param_count) {
             if (!param_exists) {
                 char * str1 = (char*)malloc(1);
                 sprintf( str1, "%d", node->lineNo );
+                cur_func_line = node->lineNo;
                 char * str2 = "\n\tParameter mismatch in function call \n\t";
                 char * str3 = param_f->name;
                 char * str4 = constructErrStmt(str1, str2, str3, "(");
                 error_statement[statement_itr++] = constructErrStmt(str4, var_type, ")", " ");
+            } else if (cur_func && node->lineNo != cur_func_line) {
+                cur_func_line = node->lineNo;
+                char * str1 = "Expression on line ";
+                char * str2 = (char*)malloc(1);
+                sprintf( str2, "%d", node->lineNo );
+                char * str3 =  " has type ";
+                char * final_str = constructErrStmt(str1, str2, str3, param_f->dataType);
+                cur_func->statements[cur_func->statement_itr++] = final_str;
             }
         }
     }
@@ -374,6 +392,68 @@ void functionTypeChecking(struct treeNode*node, int param_count) {
     for (int i = 0; i < node->Nchildren; i++) {
         functionTypeChecking(node->child[i], param_count);
     }
+}
+
+int stop_loop = 0;
+void loopTypeChecking(struct treeNode*node, char * loop_name) {
+    if (strcmp(node->lborder, "{") == 0)
+        stop_loop = 1;
+    if (strcmp(node->string, none) != 0 && !stop_loop) {
+        char * type = verifyVariable(node->string);
+        if (strcmp(type, "int") != 0 || strcmp(type, "float") != 0 && node->lineNo > cur_func_line) {
+            cur_func_line = node->lineNo;
+            char * str1 = (char*)malloc(1);
+            sprintf(str1, "%d", node->lineNo);
+            char * str2 = "\n\tCondition of";
+            char * str3 = " ";
+            char * str4 = constructErrStmt(str1, str2, str3, loop_name);
+            char * str5 = " loop has invalid type:";
+            char * str6 = type;
+            error_statement[statement_itr++] = constructErrStmt(str4, str5, " ", str6 );
+        }
+    } else if (strcmp(node->value, none) != 0 && !stop_loop) {
+        char *type = checkVariableDatatype(node->value);
+        if (strcmp(type, "int") != 0 || strcmp(type, "float") != 0 && node->lineNo > cur_func_line) {
+            cur_func_line = node->lineNo;
+            char * str1 = (char*)malloc(1);
+            sprintf(str1, "%d", node->lineNo);
+            char * str2 = "\n\tCondition of";
+            char * str3 = " ";
+            char * str4 = constructErrStmt(str1, str2, str3, loop_name);
+            char * str5 = " loop has invalid type:";
+            char * str6 = type;
+            error_statement[statement_itr++] = constructErrStmt(str4, str5, " ", str6 );
+        }
+    }
+
+    for (int i = 0; i < node->Nchildren; i++)
+        loopTypeChecking(node->child[i], loop_name);
+}
+
+void arrayTypeChecking(struct treeNode *node) {
+    if (strcmp(node->string, none) != 0) {
+        char *type = verifyVariable(node->string);
+        if (strcmp(type, "int") != 0 && node->lineNo > cur_func_line) {
+            cur_func_line = node->lineNo;
+            char * str1 = (char*)malloc(1);
+            sprintf(str1, "%d", node->lineNo);
+            char * str2 = "\n\tArray index should be an integer (was:";
+            char * str3 = constructErrStmt(str1, str2, " ", type);
+            error_statement[statement_itr++] = constructErrStmt(str3, ")", " ", " ");
+        }
+    } else if (strcmp(node->value, none) != 0) {
+        char *type = checkVariableDatatype(node->value);
+        if (strcmp(type, "int") != 0 && node->lineNo > cur_func_line) {
+            cur_func_line = node->lineNo;
+            char * str1 = (char*)malloc(1);
+            sprintf( str1, "%d", node->lineNo );
+            char * str2 = "\n\tArray index should be an integer (was:";
+            char * str3 = constructErrStmt(str1, str2, " ", type);
+            error_statement[statement_itr++] = constructErrStmt(str3, ")", " ", " ");
+        }
+    }
+    for (int i = 0; i < node->Nchildren; i++)
+        arrayTypeChecking(node->child[i]);
 }
 
 int current_lineno = -1;
@@ -387,9 +467,13 @@ void printVariables(struct treeNode* node) {
     
     if (strcmp(node->nodeType, "variable_exp") == 0 && strcmp(node->lborder, "(") == 0) {
         is_statement = 0;
-        int param_count = getParamters(node, 0);
+        int param_count = getParameters(node, 0);
+        param_f = malloc(sizeof(struct function));
         functionTypeChecking(node, param_count);
-        
+    }
+
+    if (strcmp(node->nodeType, "variable_exp") == 0 && strcmp(node->lborder, "[") == 0) {
+        arrayTypeChecking(node);
     }
 
     if (is_statement && strcmp(node->operator, none) != 0) {
@@ -404,15 +488,14 @@ void printVariables(struct treeNode* node) {
         }
     }
 
+    if (strcmp(node->nodeType, "loop_stat") == 0) {
+        stop_loop = 0;
+        loopTypeChecking(node, node->rborder);
+    }
+
 	if (!inside_func) {
         if (strcmp(node->nodeType, "struct_spec") == 0 && strcmp(node->string, none) != 0) {
-            int sz1 = strlen(data_type);
-            int sz2 = strlen(node->string);
-            char * final_str = (char*)malloc(sz1 + sz2 + 1);
-            memcpy(final_str, data_type, sz1);
-            memcpy(final_str + sz1, " ", 1);
-            memcpy(final_str + 1 + sz1, node->string, sz2);
-		    global_struct[global_struct_itr++] = final_str;
+            global_struct[global_struct_itr++] = constructErrStmt(data_type, " ", node->string, "");
 
             struct symbol * cur_sym = malloc(sizeof(struct symbol));
             cur_sym->var = node->string;
@@ -751,16 +834,16 @@ stat_list					: stat     									{$$=newnode(none, none, yylineno, "stat_list",
 selection_stat				: IF LPAR exp RPAR stat 									%prec "then"		{$$=newnode("(", ")", yylineno, "selection_stat", none, none, none, none, 2, $3, $5);}
 							| IF LPAR exp RPAR stat ELSE stat												{$$=newnode("(", ")", yylineno, "selection_stat", none, none, none, none, 3, $3, $5, $7);}
 							;
-loop_stat					: WHILE LPAR exp RPAR stat								{$$=newnode("(", ")", yylineno, "loop_stat", none, none, none, none, 2, $3, $5);}
-							| DO stat WHILE LPAR exp RPAR SEMI						{$$=newnode("(", ")", yylineno, "loop_stat", none, none, none, none, 2, $2, $5);}
-							| FOR LPAR exp SEMI exp SEMI exp RPAR stat				{$$=newnode("(", ")", yylineno, "loop_stat", none, none, none, none, 4, $3, $5, $7, $9);}
-							| FOR LPAR exp SEMI exp SEMI RPAR stat					{$$=newnode("(", ")", yylineno, "loop_stat", none, none, none, none, 3, $3, $5, $8);}
-							| FOR LPAR exp SEMI SEMI exp RPAR stat					{$$=newnode("(", ")", yylineno, "loop_stat", none, none, none, none, 3, $3, $6, $8);}
-							| FOR LPAR exp SEMI SEMI RPAR stat						{$$=newnode("(", ")", yylineno, "loop_stat", none, none, none, none, 2, $3, $7);}
-							| FOR LPAR SEMI exp SEMI exp RPAR stat					{$$=newnode("(", ")", yylineno, "loop_stat", none, none, none, none, 3, $4, $6, $8);}
-							| FOR LPAR SEMI exp SEMI RPAR stat						{$$=newnode("(", ")", yylineno, "loop_stat", none, none, none, none, 2, $4, $7);}
-							| FOR LPAR SEMI SEMI exp RPAR stat						{$$=newnode("(", ")", yylineno, "loop_stat", none, none, none, none, 2, $5, $7);}
-							| FOR LPAR SEMI SEMI RPAR stat							{$$=newnode("(", ")", yylineno, "loop_stat", none, none, none, none, 1, $6);}
+loop_stat					: WHILE LPAR exp RPAR stat								{$$=newnode("(", "while", yylineno, "loop_stat", none, none, none, none, 2, $3, $5);}
+							| DO stat WHILE LPAR exp RPAR SEMI						{$$=newnode("(", "do", yylineno, "loop_stat", none, none, none, none, 2, $2, $5);}
+							| FOR LPAR exp SEMI exp SEMI exp RPAR stat				{$$=newnode("(", "for", yylineno, "loop_stat", none, none, none, none, 4, $3, $5, $7, $9);}
+							| FOR LPAR exp SEMI exp SEMI RPAR stat					{$$=newnode("(", "for", yylineno, "loop_stat", none, none, none, none, 3, $3, $5, $8);}
+							| FOR LPAR exp SEMI SEMI exp RPAR stat					{$$=newnode("(", "for", yylineno, "loop_stat", none, none, none, none, 3, $3, $6, $8);}
+							| FOR LPAR exp SEMI SEMI RPAR stat						{$$=newnode("(", "for", yylineno, "loop_stat", none, none, none, none, 2, $3, $7);}
+							| FOR LPAR SEMI exp SEMI exp RPAR stat					{$$=newnode("(", "for", yylineno, "loop_stat", none, none, none, none, 3, $4, $6, $8);}
+							| FOR LPAR SEMI exp SEMI RPAR stat						{$$=newnode("(", "for", yylineno, "loop_stat", none, none, none, none, 2, $4, $7);}
+							| FOR LPAR SEMI SEMI exp RPAR stat						{$$=newnode("(", "for", yylineno, "loop_stat", none, none, none, none, 2, $5, $7);}
+							| FOR LPAR SEMI SEMI RPAR stat							{$$=newnode("(", "for", yylineno, "loop_stat", none, none, none, none, 1, $6);}
 							;
 jump_stat					: CONTINUE SEMI										{$$=newnode("continue", none, yylineno, "jump_stat", none, none, none, none, 0);}
 							| BREAK SEMI										{$$=newnode("break", none, yylineno, "jump_stat", none, none, none, none, 0);}				
@@ -855,7 +938,7 @@ variables					: IDENT 							{$$=newnode(none, none, yylineno, "variables", $1, 
 %%
 
 int initialize_parser(char * filename) {
-    yydebug = 1;
+    //yydebug = 1;
     FILE *f = fopen( filename, "r" );
     if ( !f ) {
         printf("Error: Opening include file: %s\n", filename);
@@ -986,7 +1069,7 @@ int semantic_analyzer(char * filename) {
     }
     
     for (int i = 0; i < statement_itr; i++) {
-        fprintf(stderr, "Error near line %s %s\n", filename, error_statement[i]);
+        fprintf(stderr, "Error near %s line %s\n", filename, error_statement[i]);
     }
     
     return 0;
