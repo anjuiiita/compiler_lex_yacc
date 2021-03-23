@@ -35,6 +35,17 @@ struct symbol {
 struct symbol *symbol_table[200];
 int symbol_itr = 0;
 
+struct global_struct {
+    char * name;
+    char * param[100];
+    int param_itr;
+    char * data_type;
+    int line;
+};
+
+struct global_struct *g_struct_list[100];
+int g_struct_list_itr = 0;
+
 char *global[100];
 int global_itr = 0;
 int inside_func = 0;
@@ -52,12 +63,16 @@ struct function {
     int statement_itr;
     struct symbol * symbol_table[100];
     int symbol_itr;
+    struct global_struct * local_struct[100];
+    int local_struct_itr;
 };
+
 struct function *cur_func;
 struct function *func_list[100];
 int func_list_itr = 0;
-char *global_struct[100];
-int global_struct_itr = 0;
+
+
+
 int arr = 0;
 char *data_type = "none";
 int return_data = 0;
@@ -169,7 +184,13 @@ void typeChecking(struct treeNode * node) {
     if (strcmp(parent, "++") == 0 || strcmp(parent, "--") == 0) {
         if (strcmp(node->string, none) != 0) {
             char * dt = verifyVariable(node->string);
-            if (strcmp(dt, none) != 0 && cur_func && inside_func) {
+            if (strcmp(dt, "const") == 0) {
+                cur_func_line = node->lineNo;
+                char * str1 = (char*)malloc(1);
+                sprintf( str1, "%d", node->lineNo );
+                char * str2 = "\n\tCannot assign to item of type const";
+                error_statement[statement_itr++] = constructErrStmt(str1, str2, " ", dt);
+            } else if (strcmp(dt, none) != 0 && cur_func && inside_func) {
                 char * str1 = "Expression on line ";
                 char * str2 = (char*)malloc(1);
                 sprintf( str2, "%d", node->lineNo );
@@ -189,7 +210,13 @@ void typeChecking(struct treeNode * node) {
     } else {
         if (strcmp(node->string, none) != 0) {
             char * dt = verifyVariable(node->string);
-            if (strcmp(dt, none) == 0) {
+            if (strcmp(dt, "const") == 0) {
+                cur_func_line = node->lineNo;
+                char * str1 = (char*)malloc(1);
+                sprintf( str1, "%d", node->lineNo );
+                char * str2 = "\n\tCannot assign to item of type const";
+                error_statement[statement_itr++] = constructErrStmt(str1, str2, " ", dt);
+            } else if (strcmp(dt, none) == 0) {
                 local_dt = dt;
                 char * str1 = (char*)malloc(1);
                 sprintf( str1, "%d", node->lineNo);
@@ -229,7 +256,13 @@ void typeChecking(struct treeNode * node) {
         } 
         if (strcmp(node->value, none) != 0) {
             char * dt = checkVariableDatatype(node->value);
-            if (strcmp(dt, none) == 0) {
+            if (strcmp(dt, "const") == 0) {
+                cur_func_line = node->lineNo;
+                char * str1 = (char*)malloc(1);
+                sprintf( str1, "%d", node->lineNo );
+                char * str2 = "\n\tCannot assign to item of type const";
+                error_statement[statement_itr++] = constructErrStmt(str1, str2, " ", dt);
+            } else if (strcmp(dt, none) == 0) {
                 local_dt = dt;
                 char * str1 = "line";
                 char * str2 = (char*)malloc(1);
@@ -267,6 +300,7 @@ void typeChecking(struct treeNode * node) {
             }
         }
     }
+
     for (int i = 0; i < node->Nchildren; i++) {
         if (strcmp(node->operator, none) != 0) {
             parent = node->operator;
@@ -343,8 +377,6 @@ void functionTypeChecking(struct treeNode*node, int param_count) {
                     char * str4 = constructErrStmt(str1, str2, str3, "(");
                     error_statement[statement_itr++] = constructErrStmt(str4, var_f->dataType, ")", " ");
                 }
-            } else {
-                param_f = NULL;
             }
         } else {
             param_f = NULL;
@@ -367,8 +399,10 @@ void functionTypeChecking(struct treeNode*node, int param_count) {
                 char * param_type = strtok(func_params, " ");
                 if (strcmp(var_type, param_type) == 0) {
                     param_exists = 1;
+                    break;
                 }
             }
+
             if (!param_exists) {
                 char * str1 = (char*)malloc(1);
                 sprintf( str1, "%d", node->lineNo );
@@ -456,6 +490,38 @@ void arrayTypeChecking(struct treeNode *node) {
         arrayTypeChecking(node->child[i]);
 }
 
+int verifyStruct(int line, char * name) {
+    for (int i = 0; i < g_struct_list_itr; i++) {
+        if (strcmp(name, g_struct_list[i]->name) == 0) {
+            char * str1 = (char*)malloc(1);
+            sprintf( str1, "%d", line);
+            char * str2 = "\n\tstruct";
+            char * str3 = constructErrStmt(str1, str2, " ", name);
+            char * str4 = (char*)malloc(1);
+            sprintf(str4, "%d", g_struct_list[i]->line);
+            error_statement[statement_itr++] = constructErrStmt(str3, " already defined near line", " ", str4);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+char * struct_var_type = "struct";
+void store_struct(struct treeNode*node, struct global_struct*cur_struct) {
+    if (strcmp(node->dataType, none) != 0 ) {
+		struct_var_type = node->dataType;
+	}
+    if (strcmp(node->nodeType, "stmt_declarator") == 0 && strcmp(node->string, none) != 0){
+        cur_struct->param[cur_struct->param_itr++] = constructErrStmt(struct_var_type, " ", node->string, "");
+    } else if (strcmp(node->string, none) != 0) {
+        cur_struct->name = node->string;
+    }
+    
+    for (int i = 0; i < node->Nchildren; i++) {
+        store_struct(node->child[i], cur_struct);
+    }
+}
+
 int current_lineno = -1;
 int is_statement = 1;
 
@@ -495,13 +561,16 @@ void printVariables(struct treeNode* node) {
 
 	if (!inside_func) {
         if (strcmp(node->nodeType, "struct_spec") == 0 && strcmp(node->string, none) != 0) {
-            global_struct[global_struct_itr++] = constructErrStmt(data_type, " ", node->string, "");
-
-            struct symbol * cur_sym = malloc(sizeof(struct symbol));
-            cur_sym->var = node->string;
-            cur_sym->dataType = data_type;
-            symbol_table[symbol_itr++] = cur_sym;
-
+            struct_var_type = "struct";
+            struct global_struct* cur_struct = malloc(sizeof(struct global_struct));
+            store_struct(node, cur_struct);
+            if (cur_struct->name) {
+                int val = verifyStruct(node->lineNo, cur_struct->name);
+                cur_struct->line = node->lineNo;
+                if (!val)
+                    g_struct_list[g_struct_list_itr++] = cur_struct;
+                struct_var_type = none;
+            }
         }
         
 	    if (strcmp(node->nodeType, "stmt_declarator") == 0 && strcmp(node->lborder, none) != 0) {
@@ -509,7 +578,7 @@ void printVariables(struct treeNode* node) {
 		    arr = 1;
         }
         
-        if (strcmp(node->nodeType, "stmt_declarator") == 0 && strcmp(node->string, none) != 0) {
+        if (strcmp(node->nodeType, "stmt_declarator") == 0 && strcmp(node->string, none) != 0 && strcmp(struct_var_type, none) != 0) {
             is_statement = 1;
             if (arr) {
                 arr = 0;
@@ -528,7 +597,7 @@ void printVariables(struct treeNode* node) {
             
         }
 	        
-        if (strcmp(node->nodeType, "func_declarator") == 0 && strcmp(node->string, none) != 0) {
+        if (strcmp(node->nodeType, "func_declarator") == 0 && strcmp(node->string, none) != 0 && strcmp(struct_var_type, none) != 0) {
             global[global_itr++] = constructErrStmt(data_type, " ", node->string, "");
 
             struct symbol * cur_sym = malloc(sizeof(struct symbol));
@@ -599,7 +668,7 @@ void printVariables(struct treeNode* node) {
                 arr = 1;
             }
         
-            if (strcmp(node->nodeType, "stmt_declarator") == 0 && cur_func && strcmp(node->string, none) != 0) {
+            if (strcmp(node->nodeType, "stmt_declarator") == 0 && cur_func && strcmp(node->string, none) != 0 && strcmp(struct_var_type, none) != 0) {
                 is_statement = 1; 
                 int sz1 = strlen(data_type);
                 int sz2 = strlen(node->string);
@@ -616,6 +685,24 @@ void printVariables(struct treeNode* node) {
                     cur_sym->var = node->string;
                 cur_sym->dataType = data_type;
                 cur_func->symbol_table[cur_func->symbol_itr++] = cur_sym;
+            }
+
+            if (strcmp(node->nodeType, "struct_spec") == 0 && strcmp(node->string, none) != 0) {
+                struct_var_type = "struct";
+                struct global_struct* cur_struct = malloc(sizeof(struct global_struct));
+                store_struct(node, cur_struct);
+                if (cur_struct->name) {
+                    int val = verifyStruct(node->lineNo, cur_struct->name);
+                    cur_struct->line = node->lineNo;
+                    if (!val) {
+                        cur_func->local_struct[cur_func->local_struct_itr++] = cur_struct;
+                        /*struct symbol * cur_sym = malloc(sizeof(struct symbol));
+                        cur_sym->var = node->string;
+                        cur_sym->dataType = data_type;
+                        cur_func->symbol_table[cur_func->symbol_itr++] = cur_sym;*/
+                    }
+                }
+                struct_var_type = none;
             }
         }
 
@@ -773,9 +860,9 @@ struct_decl					: type_spec_list struct_declarator_list SEMI     	{$$=newnode(no
 							;
 type_spec_list				: type_spec type_spec_list							{$$=newnode(none, none, yylineno, "type_spec_list", none, none, none, none, 2, $1, $2);}
 							| type_spec											{$$=newnode(none, none, yylineno, "type_spec_list", none, none, none, none, 1, $1);}	
-							| CONST type_spec_list								{$$=newnode(none, none, yylineno, "type_spec_list", none, none, none, none, 1, $2);}
-							| CONST												{$$=newnode(none, none, yylineno, "type_spec_list", none, none, "const", none, 0);}
-							;
+							| CONST type_spec_list								{$$=newnode(none, none, yylineno, "type_spec_list", none, none, "const", none, 1, $2);}
+							| CONST                                             {$$=newnode(none, none, yylineno, "type_spec_list", none, none, "const", none, 0);}
+                            ;
 struct_declarator_list		: stmt_declarator									{$$=newnode(none, none, yylineno, "struct_declarator_list", none, none, none, none, 1, $1);}
 							| struct_declarator_list COMMA stmt_declarator		{$$=newnode(",", none, yylineno, "struct_declarator_list", none, none, none, none, 2, $1, $3);}
 							;
@@ -956,14 +1043,15 @@ int initialize_parser(char * filename) {
 
     
 	int i = 0, j;
-	if (global_struct_itr > 0) {
+	if (g_struct_list_itr > 0) {
 		fprintf(stdout, "Global struct \n");
 		fprintf(stdout, "\t");
 	
-		for (i = 0; i < global_struct_itr - 1; i++)
-			fprintf(stdout, "%s, ", global_struct[i]);
-		fprintf(stdout, "%s\n", global_struct[global_struct_itr - 1]);
+		//for (i = 0; i < g_struct_list_itr - 1; i++)
+			//fprintf(stdout, "%s, ", g_struct_list[i]->name);
+		//fprintf(stdout, "%s\n", global_struct[global_struct_itr - 1]);
 	}
+
 	if (global_itr > 0) {
 		fprintf(stdout, "Global variables \n");
 		fprintf(stdout, "\t");
@@ -1025,14 +1113,17 @@ int semantic_analyzer(char * filename) {
 
     
 	int i = 0, j;
-	if (global_struct_itr > 0) {
-		fprintf(stdout, "Global struct \n");
-		fprintf(stdout, "\t");
+	if (g_struct_list_itr > 0) {
 	
-		for (i = 0; i < global_struct_itr - 1; i++)
-			fprintf(stdout, "%s, ", global_struct[i]);
-		fprintf(stdout, "%s\n", global_struct[global_struct_itr - 1]);
+		for (i = 0; i < g_struct_list_itr; i++) {
+			fprintf(stdout, "Global struct %s\n", g_struct_list[i]->name);
+            for (int j = 0; j < g_struct_list[i]->param_itr; j++) {
+                fprintf(stdout, "\t%s\n", g_struct_list[i]->param[j]);
+            }
+        }
 	}
+
+    fprintf(stdout, "\n");
     fprintf(stdout, "Global variables \n");
     for (i = 0; i < global_itr; i++)
         fprintf(stdout, "\t%s\n", global[i]);
@@ -1051,16 +1142,24 @@ int semantic_analyzer(char * filename) {
         } else {
             fprintf(stdout, "Function %s, returns %s\n", func->name, func->dataType);
             
-            fprintf(stdout, "\tParameters:\n");
+            fprintf(stdout, "\tParameters\n");
             for(int j = 0; j < func->param_itr; j++)
                 fprintf(stdout, "\t\t%s\n", func->param[j]);
             fprintf(stdout, "\n");
-            fprintf(stdout, "\tLocal variables:\n");
+            fprintf(stdout, "\tLocal variables\n");
             for(int j = 0; j < func->local_itr; j++)
                 fprintf(stdout, "\t\t%s\n", func->local_var[j]);
+
+            fprintf(stdout, "\n");
+            for (int j = 0; j < func->local_struct_itr; j++) {
+                fprintf(stdout, "\tLocal struct %s\n", func->local_struct[j]->name);
+                for (int l = 0; l < func->local_struct[j]->param_itr; l++) {
+                    fprintf(stdout, "\t%s\n", func->local_struct[j]->param[l]);
+                }
+            }
         
             fprintf(stdout, "\n");
-            fprintf(stdout, "\tStatements: ");
+            fprintf(stdout, "\tStatements ");
             for(int j = 0; j < func->statement_itr; j++)
                 fprintf(stdout, "\n\t\t%s", func->statements[j]);
             fprintf(stdout, "\n");
