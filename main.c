@@ -29,10 +29,17 @@ int main(int argc, char* argv[]) {
                 switch (next_mode) {
                     case 'o':
                         if (argc == 4) {
-                            if ((file = fopen(argv[3], "r")) != NULL) {
-                                while ((c = getc(file)) != EOF)
-                                    putchar(c);
+                            FILE * fptr = fopen(argv[3], "w");
+                            if (fptr == NULL) {
+                                printf("Error opening the file\n");
+                                return 0;
+                            }
+                            if ((file = fopen("zeroarg.out.txt", "r")) != NULL) {
+                                while ((c = getc(file)) != EOF) {
+                                    fprintf(fptr, "%c", c);
+                                }
                                 fclose(file);
+                                fclose(fptr);
                             }
                         } else {
                             printf("Please provide the filename after -o\n");
