@@ -51,6 +51,20 @@ In part 2, it checks only the input file syntax.
 Production rules are defined to check the syntax
 EXTRA : variable initialization, CONSTANTS, STRUCT, struct member selection are defined.
 
+## Feature Part 2
+For part 3,  mode 3 is implemented which uses lex and yacc to tokenize the input file and build parse tree.
+Did semantic analysis using symbol tables.
+
+To run mode 2 please run below command.
+
+mycc -3 <input_file>
+
+Part 0, 1 and 2 are working as before.
+
+In part 3, it does only the input file semantic analysis.
+Production rules are defined to check the syntax
+EXTRA :  initialization, const, user-defined structs, struct member selection are defined.
+
 
 ## To read from input file please run below command
 

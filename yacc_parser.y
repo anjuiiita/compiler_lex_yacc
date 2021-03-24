@@ -181,14 +181,18 @@ char * local_dt = "none";
 char * parent = "none";
 int cur_func_line = 0;
 void typeChecking(struct treeNode * node) {
+    if (strcmp(node->nodeType, "stmt_declarator") == 0) {
+        return;
+    }
+
     if (strcmp(parent, "++") == 0 || strcmp(parent, "--") == 0) {
         if (strcmp(node->string, none) != 0) {
             char * dt = verifyVariable(node->string);
-            if (strcmp(dt, "const") == 0) {
+            if (strstr(dt, "const") != NULL || strstr(local_dt, "const") != NULL && node->lineNo != cur_func_line) {
                 cur_func_line = node->lineNo;
                 char * str1 = (char*)malloc(1);
                 sprintf( str1, "%d", node->lineNo );
-                char * str2 = "\n\tCannot assign to item of type const";
+                char * str2 = "\n\tCannot assign to item of type";
                 error_statement[statement_itr++] = constructErrStmt(str1, str2, " ", dt);
             } else if (strcmp(dt, none) != 0 && cur_func && inside_func) {
                 char * str1 = "Expression on line ";
@@ -210,13 +214,7 @@ void typeChecking(struct treeNode * node) {
     } else {
         if (strcmp(node->string, none) != 0) {
             char * dt = verifyVariable(node->string);
-            if (strcmp(dt, "const") == 0) {
-                cur_func_line = node->lineNo;
-                char * str1 = (char*)malloc(1);
-                sprintf( str1, "%d", node->lineNo );
-                char * str2 = "\n\tCannot assign to item of type const";
-                error_statement[statement_itr++] = constructErrStmt(str1, str2, " ", dt);
-            } else if (strcmp(dt, none) == 0) {
+            if (strcmp(dt, none) == 0) {
                 local_dt = dt;
                 char * str1 = (char*)malloc(1);
                 sprintf( str1, "%d", node->lineNo);
@@ -233,7 +231,15 @@ void typeChecking(struct treeNode * node) {
                     error_statement[statement_itr++] = constructErrStmt(str4, parent, " ", "error");
                 }
             } else if (strcmp(local_dt, none) != 0) {
-                if(strcmp(dt, local_dt) != 0 && node->lineNo != cur_func_line) {
+                if (strstr(dt, "const") != NULL  && node->lineNo != cur_func_line) {
+                    if (strstr(parent, "=") != NULL) {
+                        cur_func_line = node->lineNo;
+                        char * str1 = (char*)malloc(1);
+                        sprintf( str1, "%d", node->lineNo );
+                        char * str2 = "\n\tCannot assign to item of type";
+                        error_statement[statement_itr++] = constructErrStmt(str1, str2, " ", dt);
+                    }
+                } else if(strcmp(dt, local_dt) != 0 && node->lineNo != cur_func_line) {
                     cur_func_line = node->lineNo;
                     char * str1 = (char*)malloc(1);
                     sprintf( str1, "%d", node->lineNo);
@@ -256,13 +262,7 @@ void typeChecking(struct treeNode * node) {
         } 
         if (strcmp(node->value, none) != 0) {
             char * dt = checkVariableDatatype(node->value);
-            if (strcmp(dt, "const") == 0) {
-                cur_func_line = node->lineNo;
-                char * str1 = (char*)malloc(1);
-                sprintf( str1, "%d", node->lineNo );
-                char * str2 = "\n\tCannot assign to item of type const";
-                error_statement[statement_itr++] = constructErrStmt(str1, str2, " ", dt);
-            } else if (strcmp(dt, none) == 0) {
+            if (strcmp(dt, none) == 0) {
                 local_dt = dt;
                 char * str1 = "line";
                 char * str2 = (char*)malloc(1);
@@ -279,7 +279,16 @@ void typeChecking(struct treeNode * node) {
                     error_statement[statement_itr++] = constructErrStmt(str4, parent, " ", "error");
                 }
             } else if (strcmp(local_dt, none) != 0) {
-                if(strcmp(dt, local_dt) != 0) {
+                if (strstr(dt, "const") != NULL && node->lineNo != cur_func_line) {
+                    if (strstr(parent, "=") != NULL) {
+                        cur_func_line = node->lineNo;
+                        char * str1 = (char*)malloc(1);
+                        sprintf( str1, "%d", node->lineNo );
+                        char * str2 = "\n\tCannot assign to item of type const";
+                        error_statement[statement_itr++] = constructErrStmt(str1, str2, " ", dt);
+                    }
+                } else if(strcmp(dt, local_dt) != 0 && node->lineNo != cur_func_line) {
+                    cur_func_line = node->lineNo;
                     char * str1 = (char*)malloc(1);
                     sprintf( str1, "%d", node->lineNo );
                     char * str2 = "\n\tOperation not supported: ";
@@ -298,7 +307,7 @@ void typeChecking(struct treeNode * node) {
             } else if (strcmp(local_dt, none) == 0) {
                 local_dt = dt;
             }
-        }
+        }      
     }
 
     for (int i = 0; i < node->Nchildren; i++) {
@@ -522,15 +531,36 @@ void store_struct(struct treeNode*node, struct global_struct*cur_struct) {
     }
 }
 
+int scanStatement(struct treeNode*node) {
+
+    if (strcmp(node->dataType, none) == 0 ) {
+        return 1;
+    }
+
+    for (int i = 0; i < node->Nchildren; i++) {
+        return scanStatement(node->child[i]);
+    }
+    return 0;
+}
+
 int current_lineno = -1;
 int is_statement = 1;
+char* const_detected = "none";
 
 void printVariables(struct treeNode* node) {
 
     if (strcmp(node->nodeType, "type_spec") == 0 && strcmp(node->dataType, none) != 0 ) {
 		data_type = node->dataType;
+        
+        if (strcmp(const_detected, none) != 0) {
+            data_type = const_detected;
+            const_detected = none;
+        }
+        if (strcmp(node->lborder, "const") == 0) {
+            const_detected = data_type;
+        }
 	}
-    
+
     if (strcmp(node->nodeType, "variable_exp") == 0 && strcmp(node->lborder, "(") == 0) {
         is_statement = 0;
         int param_count = getParameters(node, 0);
@@ -832,17 +862,18 @@ stmt						: stmt_specs init_declarator_list SEMI 		{$$=newnode(none, none, yylin
 stmt_list					: stmt 									{$$=$1;}			
 							| stmt_list stmt						{$$=newnode(none, none, yylineno, "stat_list", $2->string, none, none, none, 2, $1, $2);}	
 							;
-stmt_specs					: type_spec stmt_specs					{$$=newnode(none, none, yylineno, "stmt_specs", none, none, none, $1->operator, 2, $1, $2);}
-							| type_spec 							{$$=newnode(none, none, yylineno, "stmt_specs", none, none, none, $1->operator, 1, $1);}
-							| CONST stmt_specs 						{$$=newnode(none, none, yylineno, "stmt_specs", none, none, "const", none, 1, $2);}
-							| CONST 								{$$=newnode(none, none, yylineno, "stmt_specs", none, none, "const", none, 0);}	
+stmt_specs					: type_spec stmt_specs					{$$=newnode(none, none, yylineno, "stmt_specs", none, none, $1->dataType, $1->operator, 2, $1, $2);}
+							| type_spec 							{$$=newnode(none, none, yylineno, "stmt_specs", none, none, $1->dataType, $1->operator, 1, $1);}
+							//| CONST stmt_specs 						{$$=newnode("const", none, yylineno, "stmt_specs", none, none, constructErrStmt("const", " ", $2->dataType, ""), none, 1, $2);}
+							//| CONST 								{$$=newnode(none, none, yylineno, "stmt_specs", none, none, $1->dataType, none, 0);}	
 							;
 type_spec					: INT							{$$=newnode(none, none, yylineno, "type_spec", none, none, "int", none, 0);}			
 							| FLOAT							{$$=newnode(none, none, yylineno, "type_spec", none, none, "float", none, 0);}
 							| CHAR 							{$$=newnode(none, none, yylineno, "type_spec", none, none, "char", none, 0);}
 							| VOID							{$$=newnode(none, none, yylineno, "type_spec", none, none, "void", none, 0);}
 							| struct_spec					{$$=newnode(none, none, yylineno, "type_spec", none, none, "struct", none, 1, $1);}
-							;
+                            | CONST type_spec 				{$$=newnode("const", none, yylineno, "type_spec", none, none, constructErrStmt("const", " ", $2->dataType, ""), none, 1, $2);}
+                            ;
 struct_spec					: STRUCT IDENT LBRACE struct_stmt_list RBRACE		{$$=newnode(none, none, yylineno, "struct_spec", $2, none, "struct", none, 1, $4);}
 							| STRUCT LBRACE struct_stmt_list RBRACE				{$$=newnode(none, none, yylineno, "struct_spec", none, none, "struct", none, 1, $3);}
 							| STRUCT IDENT										{$$=newnode(none, none, yylineno, "struct_spec", $2, none, "struct", none, 0);}
@@ -858,10 +889,10 @@ init_declarator				: stmt_declarator						            {$$=$1;}
 							;
 struct_decl					: type_spec_list struct_declarator_list SEMI     	{$$=newnode(none, none, yylineno, "struct_decl", none, none, none, none, 2, $1, $2);}
 							;
-type_spec_list				: type_spec type_spec_list							{$$=newnode(none, none, yylineno, "type_spec_list", none, none, none, none, 2, $1, $2);}
-							| type_spec											{$$=newnode(none, none, yylineno, "type_spec_list", none, none, none, none, 1, $1);}	
-							| CONST type_spec_list								{$$=newnode(none, none, yylineno, "type_spec_list", none, none, "const", none, 1, $2);}
-							| CONST                                             {$$=newnode(none, none, yylineno, "type_spec_list", none, none, "const", none, 0);}
+type_spec_list				: type_spec type_spec_list							{$$=newnode(none, none, yylineno, "type_spec_list", none, none, $1->dataType, none, 2, $1, $2);}
+							| type_spec											{$$=newnode(none, none, yylineno, "type_spec_list", none, none, $1->dataType, none, 1, $1);}	
+							//| CONST type_spec_list								{$$=newnode(none, none, yylineno, "type_spec_list", none, none, constructErrStmt("const", " ", $2->dataType, ""), none, 1, $2);}
+							//| CONST                                             {$$=newnode(none, none, yylineno, "type_spec_list", none, none, constructErrStmt("const", " ", $2->dataType, ""), none, 0);}
                             ;
 struct_declarator_list		: stmt_declarator									{$$=newnode(none, none, yylineno, "struct_declarator_list", none, none, none, none, 1, $1);}
 							| struct_declarator_list COMMA stmt_declarator		{$$=newnode(",", none, yylineno, "struct_declarator_list", none, none, none, none, 2, $1, $3);}
@@ -1121,9 +1152,9 @@ int semantic_analyzer(char * filename) {
                 fprintf(stdout, "\t%s\n", g_struct_list[i]->param[j]);
             }
         }
+        fprintf(stdout, "\n");
 	}
 
-    fprintf(stdout, "\n");
     fprintf(stdout, "Global variables \n");
     for (i = 0; i < global_itr; i++)
         fprintf(stdout, "\t%s\n", global[i]);
