@@ -25,5 +25,5 @@ yacc_parser.tab.h yacc_parser.tab.c: yacc_parser.y
 	#bison --debug --verbose -d yacc_parser.y
 
 clean: 
-	rm *.o mycc lex_cc.c yacc_lex_cc.c yacc_parser.tab.c developers.pdf developers.log
+	rm *.o mycc lex_cc.c yacc_parser.tab.c developers.pdf developers.log
 
